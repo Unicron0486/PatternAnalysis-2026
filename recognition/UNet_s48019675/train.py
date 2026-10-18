@@ -92,12 +92,11 @@ def training_2d():
     train_dataset = dataset.get_training_2d()
     val_dataset = dataset.get_validation_2d()
     
-    image, mask = train_dataset[0]
+    tester = train_dataset[0]
+    valy = val_dataset[0]
+    print(tester.shape)
+    print(valy.shape)
 
-    print(image.shape)
-    print(mask.shape)
-
-    print(torch.unique(mask))
     # test_dataset = dataset.get_testing_2d()
     
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -105,7 +104,7 @@ def training_2d():
     # test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     model = modules.TwoD_UNet().to(DEVICE)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
     

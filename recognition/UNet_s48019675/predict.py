@@ -1,3 +1,5 @@
+from matplotlib.patches import Patch
+
 import train
 import torch
 import matplotlib.pyplot as plt
@@ -12,8 +14,8 @@ DEVICE = torch.device(
 
 def dice_2d(preds, ground_truth):
 
-    preds = torch.softmax(preds, dim=1)
-    preds = torch.argmax(preds, dim=1).float()
+    preds = torch.sigmoid(preds)
+    preds = (preds > 0.5).float()
 
     intersection = (preds * ground_truth).sum()
 
@@ -53,6 +55,8 @@ def predict_2d():
     total_dice = 0.0
     count = 0
 
+    print(ground_truth.shape)
+    
     with torch.no_grad():
 
         for image, ground_truth in test_loader:
@@ -62,11 +66,14 @@ def predict_2d():
 
             output = model(image)
 
-            prediction = torch.softmax(output, dim=1)
+            prediction = torch.sigmoid(output)
 
             prediction = (
                 prediction > 0.5
             ).float()
+
+            combined = torch.argmax(prediction, dim=1)
+            combined_truth = torch.argmax(ground_truth, dim=1)
 
             dice = dice_2d(
                 output,
@@ -83,31 +90,66 @@ def predict_2d():
 
             if count <= 5:
 
-                plt.figure(figsize=(12,4))
+                plt.figure(figsize=(16,4))
 
-                plt.subplot(1,3,1)
+                plt.subplot(1,4,1)
                 plt.imshow(
                     image[0,0].cpu().numpy(),
                     cmap="gray"
                 )
-                plt.title("Input")
+                plt.title("MRI")
                 plt.axis("off")
 
-                plt.subplot(1,3,2)
+                plt.subplot(1,4,2)
                 plt.imshow(
-                    ground_truth[0,0].cpu().numpy(),
-                    cmap="gray"
+                    combined_truth[0].cpu().numpy(),
+                    cmap="tab10",
+                    vmin=0,
+                    vmax=4
                 )
                 plt.title("Ground Truth")
                 plt.axis("off")
 
-                plt.subplot(1,3,3)
+                plt.subplot(1,4,3)
                 plt.imshow(
-                    prediction[0,0].cpu().numpy(),
-                    cmap="gray"
+                    combined[0].cpu().numpy(),
+                    cmap="tab10",
+                    vmin=0,
+                    vmax=4
                 )
                 plt.title("Prediction")
                 plt.axis("off")
+
+                plt.subplot(1,4,4)
+                plt.imshow(
+                    image[0,0].cpu().numpy(),
+                    cmap="gray"
+                )
+
+                plt.imshow(
+                    combined[0].cpu().numpy(),
+                    cmap="tab10",
+                    alpha=0.4,
+                    vmin=0,
+                    vmax=4
+                )
+
+                plt.title("Overlay")
+                plt.axis("off")
+
+                legend_items = [
+                    Patch(color=plt.cm.tab10(0), label="Body"),
+                    Patch(color=plt.cm.tab10(1), label="Bone"),
+                    Patch(color=plt.cm.tab10(2), label="Bladder"),
+                    Patch(color=plt.cm.tab10(3), label="Rectum"),
+                    Patch(color=plt.cm.tab10(4), label="Prostate")
+                ]
+
+                plt.legend(
+                    handles=legend_items,
+                    bbox_to_anchor=(1.05, 1),
+                    loc="upper left"
+                )
 
                 plt.tight_layout()
                 plt.show()
