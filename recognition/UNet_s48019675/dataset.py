@@ -1,4 +1,6 @@
 from collections import defaultdict
+
+import numpy as np
 import utils
 import torch
 import os
@@ -30,7 +32,7 @@ def get_2d_data(path, truth = False):
             week = int(match.group(2))
             slice_num = int(match.group(3))
 
-            volumes([patient_id, week]).append((slice_num, os.path.join(path, file)))
+            volumes[(patient_id, week)].append((slice_num, os.path.join(path, file)))
 
     for key in volumes:
         volumes[key].sort(key=lambda x: x[0])
@@ -40,7 +42,10 @@ def get_2d_data(path, truth = False):
     for key, slices in volumes.items():
         image_name = [slice_path for _, slice_path in slices]
 
-        images[key] = volume = utils.load_data_2D(image_name, normImage=True)
+    if truth:
+        images[key] = utils.load_data_2D(image_name, normImage=False, categorical=True, dtype=np.uint8)
+    else:
+        images[key] = utils.load_data_2D(image_name, normImage=True)
 
     return images
 
@@ -69,6 +74,34 @@ def ground_testing_2d():
     loc = root2d + "/keras_slices_seg_test"
     return get_2d_data(loc, truth=True)
 
+class UNet2d_Data(torch.utils.data.Dataset):
+    def __init__(self):
+        self.images = get_training_2d()
+        self.ground_truth = ground_train_2d()
+
+        self.keys = sorted(self.images.keys())
+
+        self.samples = []
+
+        for key in self.keys:
+            image_slices = self.images[key]
+            ground_slices = self.ground_truth[key]
+
+            for i in range(image_slices.shape[0]):
+                self.samples.append((image_slices[i], ground_slices[i]))
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        image, ground_truth = self.samples[idx]
+
+        image = image.astype(np.float32)
+        ground_truth = ground_truth.astype(np.float32)
+
+        image = torch.tensor(image).unsqueeze(0)
+        ground_truth = torch.tensor(ground_truth).unsqueeze(0)
+        return image, ground_truth
 
 
 
