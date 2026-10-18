@@ -35,16 +35,16 @@ def train_epoch_2d(loader, model, optimiser, criterion):
 def validate_2d(loader, model, criterion):
     model.eval()
     running_loss = 0.0
+    with torch.no_grad():
+        for images, ground_truth in loader:
+            images = images.to(DEVICE)
+            ground_truth = ground_truth.to(DEVICE)
 
-    for images, ground_truth in loader:
-        images = images.to(DEVICE)
-        ground_truth = ground_truth.to(DEVICE)
-
-        with torch.no_grad():
+            
             outputs = model(images)
             loss = criterion(outputs, ground_truth)
 
-        running_loss += loss.item()
+            running_loss += loss.item()
 
     epoch_loss = running_loss / len(loader)
     return epoch_loss
@@ -89,15 +89,26 @@ def make_plots_2d(training_losses, validation_losses, dice_scores):
 
 def training_2d():
     # Load Data
-    data = dataset.UNet2d_Data()
-    train_size = int(0.8 * len(data))
-    val_size = len(data) - train_size
-    train_dataset, val_dataset = torch.utils.data.random_split(data, [train_size, val_size])
+    train_dataset = dataset.get_training_2d()
+    val_dataset = dataset.get_validation_2d()
+    
+    image, mask = train_dataset[0]
+
+    print(image.shape)
+    print(mask.shape)
+
+    print(torch.unique(mask))
+    # test_dataset = dataset.get_testing_2d()
+    
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    model = modules.twoD_UNet().to(DEVICE)
-    criterion = nn.BCEWithLogitsLoss()
+    # test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+    model = modules.TwoD_UNet().to(DEVICE)
+    criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    
+    
     best_dice = 0.0
 
     training_losses = []

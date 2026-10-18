@@ -42,53 +42,49 @@ def get_2d_data(path, truth = False):
     for key, slices in volumes.items():
         image_name = [slice_path for _, slice_path in slices]
 
-    if truth:
-        images[key] = utils.load_data_2D(image_name, normImage=False, categorical=True, dtype=np.uint8)
-    else:
-        images[key] = utils.load_data_2D(image_name, normImage=True)
+        if truth:
+            images[key] = utils.load_data_2D(image_name, normImage=False, categorical=True, dtype=np.uint8)
+        else:
+            images[key] = utils.load_data_2D(image_name, normImage=True)
 
     return images
 
 def get_training_2d():
     loc = root2d + "/keras_slices_train"
-    return get_2d_data(loc)
-    
+    loc2 = root2d + "/keras_slices_seg_train"
+
+    return UNet2d_Data(
+        get_2d_data(loc),
+        get_2d_data(loc2, truth=True)
+    )
+
 def get_validation_2d():
     loc = root2d + "/keras_slices_validate"
-    return get_2d_data(loc)
+    loc2 = root2d + "/keras_slices_seg_validate"
+    return UNet2d_Data(
+        get_2d_data(loc),
+        get_2d_data(loc2, truth=True)
+    )
 
 def get_testing_2d():
     loc = root2d + "/keras_slices_test"
-    return get_2d_data(loc)
-
-
-def ground_train_2d():
-    loc = root2d + "/keras_slices_seg_train"
-    return get_2d_data(loc, truth=True)
-
-def ground_validation_2d():
-    loc = root2d + "/keras_slices_seg_validate"
-    return get_2d_data(loc, truth=True)
-
-def ground_testing_2d():
-    loc = root2d + "/keras_slices_seg_test"
-    return get_2d_data(loc, truth=True)
+    loc2 = root2d + "/keras_slices_seg_test"
+    return UNet2d_Data(
+        get_2d_data(loc),
+        get_2d_data(loc2, truth=True)
+    )
 
 class UNet2d_Data(torch.utils.data.Dataset):
-    def __init__(self):
-        self.images = get_training_2d()
-        self.ground_truth = ground_train_2d()
-
-        self.keys = sorted(self.images.keys())
-
+    def __init__(self, images, masks):
         self.samples = []
 
-        for key in self.keys:
-            image_slices = self.images[key]
-            ground_slices = self.ground_truth[key]
+        for key in images:
+            volume = images[key]
+            ground_truth = masks[key]
 
-            for i in range(image_slices.shape[0]):
-                self.samples.append((image_slices[i], ground_slices[i]))
+            for i in range(volume.shape[0]):
+                self.samples.append((volume[i], ground_truth[i]))
+
 
     def __len__(self):
         return len(self.samples)

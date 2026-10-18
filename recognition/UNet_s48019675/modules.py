@@ -16,7 +16,7 @@ def twoD_double_conv(in_channels, out_channels):
     return conv
 
 class TwoD_UNet(nn.Module):
-    def __init__(self, in_channels=1, num_classes=1, features=[64, 128, 256, 512, 1024]):
+    def __init__(self, in_channels=1, num_classes=6, features=[64, 128, 256, 512, 1024]):
         super().__init__()
 
         self.pool = nn.MaxPool2d(2, 2)
