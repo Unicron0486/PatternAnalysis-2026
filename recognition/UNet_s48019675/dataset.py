@@ -1,4 +1,5 @@
 from collections import defaultdict
+from random import random
 
 import numpy as np
 import utils
@@ -127,10 +128,125 @@ class UNet2d_Data(torch.utils.data.Dataset):
         return image, ground_truth
 
 
+root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
+root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
+
+
+def get_3d_data():
+    images = load_3d_data(root3d_data)
+    masks = load_3d_data(root3d_truth, truth=True)
+
+    # (train_images, train_masks), (val_images, val_masks), (test_images, test_masks) = seperate(images, masks)
+    train, validate, test = seperate(images, masks)
+
+    dtrain = UNet3d_Data(train[0], train[1])
+    dvalidate = UNet3d_Data(validate[0], validate[1])
+    dtest = UNet3d_Data(test[0], test[1])
+
+    return dtrain, dvalidate, dtest
+
+def load_3d_data(path, truth = False):
+    if truth:
+        pattern = re.compile(r"(\w+)(\d+)_Week(\d)_SEMANTIC.nii.gz")
+    else:
+        pattern = re.compile(r"(\w+)(\d+)_Week(\d)_LFOV.nii.gz")
+
+    volumes = defaultdict(list)
+    for file in os.listdir(path):
+        match = pattern.match(file)
+        if match:
+            patient_id = match.group(1) + match.group(2)
+            week = int(match.group(3))
+            file_path = os.path.join(path, file)
+
+            volumes[(patient_id, week)].append(file_path)
+
+    for key in volumes:
+            volumes[key].sort(key=lambda x: x[0])
+
+    images = {}
+    for key, slices in volumes.items():
+        image_name = [slice_path for _, slice_path in slices]
+        if truth:
+            images[key] = utils.load_data_3D(image_name, normImage=False, categorical=True, dtype=np.uint8)
+        else:
+            images[key] = utils.load_data_3D(image_name, normImage=True)
+
+        
+    return images
+
+def seperate(images, masks):
+    random.seed(42)
+    train_images = {}
+    train_masks = {}
+    val_images = {}
+    val_masks = {}
+    test_images = {}
+    test_masks = {}
+
+    unique_patients = sorted({patient_id for patient_id, week in images.keys()})
+    
+    keys = unique_patients
+    random.shuffle(keys)
+
+    n = len(keys)
+
+    train_end = int(n * 0.7)
+    val_end = int(n * 0.85)
+
+    train_keys = keys[:train_end]
+    val_keys = keys[train_end:val_end]
+    test_keys = keys[val_end:]
+
+    for key in images:
+        patient_id, week = key
+        if patient_id in train_keys:
+            train_images[key] = images[key]
+            train_masks[key] = masks[key]
+        elif patient_id in val_keys:
+            val_images[key] = images[key]
+            val_masks[key] = masks[key]
+        elif patient_id in test_keys:
+            test_images[key] = images[key]
+            test_masks[key] = masks[key]
+   
+    return (train_images, train_masks), (val_images, val_masks), (test_images, test_masks)
 
 def get_training_3d():
-    pass
+    return TRAINING_3d
 def get_validation_3d():
-    pass
+    return VALIDATION_3d
 def get_testing_3d():
-    pass
+    return TESTING_3d
+
+class UNet3d_Data(torch.utils.data.Dataset):
+    def __init__(self, images, masks):
+        self.samples = []
+        for key in images:
+            volume = images[key]
+            ground_truth = masks[key]
+            print(f"Volume shape: {volume.shape}, Ground truth shape: {ground_truth.shape}")
+            # assert volume.shape == ground_truth.shape[:3], f"Shape mismatch for key {key}: volume shape {volume.shape}, ground truth shape {ground_truth.shape}"
+            for i in range(volume.shape[0]):
+                self.samples.append((volume[i], ground_truth[i]))
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        image, ground_truth = self.samples[idx]
+
+        image = image.astype(np.float32)
+        ground_truth = ground_truth.astype(np.uint8)
+
+        targetH = 256
+        targetW = 144
+
+        image = torch.tensor(image).unsqueeze(0)
+        # image = nn.functional.interpolate(image.unsqueeze(0), size=(targetH, targetW), mode='bilinear', align_corners=False).squeeze(0)
+
+        ground_truth = torch.tensor(ground_truth, dtype=torch.float32).permute(2, 0, 1)
+        # ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0), size=(targetH, targetW), mode='nearest').squeeze(0)
+
+        return image, ground_truth
+
