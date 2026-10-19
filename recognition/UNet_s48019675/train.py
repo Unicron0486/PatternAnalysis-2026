@@ -6,11 +6,33 @@ import dataset
 import utils
 from matplotlib.patches import Patch
 
-BATCH_SIZE = 8
+BATCH_SIZE = 1
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 20
+NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+class DiceLoss(nn.Module):
+    def __init__(self, smooth=1e-6):
+        super().__init__()
+        self.smooth = smooth
+
+    def forward(self, logits, targets):
+        probs = torch.sigmoid(logits)
+
+        probs = probs.view(probs.size(0), probs.size(1), -1)
+        targets = targets.view(targets.size(0), targets.size(1), -1)
+
+        intersection = (probs * targets).sum(dim=2)
+
+        dice = (
+            2.0 * intersection + self.smooth
+        ) / (
+            probs.sum(dim=2)
+            + targets.sum(dim=2)
+            + self.smooth
+        )
+
+        return 1 - dice.mean()
 
 #Training validation testing and saving
 def train_epoch_2d(loader, model, optimiser, criterion):
@@ -86,7 +108,7 @@ def training_2d():
     # test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     model = modules.TwoD_UNet().to(DEVICE)
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = lambda logits, targets: nn.BCEWithLogitsLoss()(logits, targets) + DiceLoss()(logits, targets)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
     
@@ -194,13 +216,34 @@ def test_2d():
             image = image.to(DEVICE)
             ground_truth = ground_truth.to(DEVICE)
 
+
             output = model(image)
 
+            
+            thresholds = torch.tensor([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], device=DEVICE).view(1, 6, 1, 1)
             prediction = torch.sigmoid(output)
 
-            prediction = (
-                prediction > 0.5
-            ).float()
+            with open("training_log.txt", "a") as log_file:
+                for c in range(6):
+                        log_file.write(
+                            f"Class {c} "
+                            f"Max: {prediction[:, c].max().item():.4f} "
+                            f"Mean: {prediction[:, c].mean().item():.4f}\n"
+                        )
+            
+            prediction = (prediction > thresholds).float()
+            # for c in range(prediction.shape[1]):
+            #     print(
+            #         c,
+            #         prediction[0, c].sum().item()
+            #     )
+
+            # for c in range(ground_truth.shape[1]):
+            #     print(
+            #         "GT",
+            #         c,
+            #         ground_truth[0, c].sum().item()
+            #     )
 
             combined = torch.argmax(prediction, dim=1)
             combined_truth = torch.argmax(ground_truth, dim=1)
@@ -268,11 +311,12 @@ def test_2d():
                 plt.axis("off")
 
                 legend_items = [
-                    Patch(color=plt.cm.tab10(0), label="Body"),
-                    Patch(color=plt.cm.tab10(1), label="Bone"),
-                    Patch(color=plt.cm.tab10(2), label="Bladder"),
-                    Patch(color=plt.cm.tab10(3), label="Rectum"),
-                    Patch(color=plt.cm.tab10(4), label="Prostate")
+                    Patch(color=plt.cm.tab10(0), label="Background"),
+                    Patch(color=plt.cm.tab10(1), label="Body"),
+                    Patch(color=plt.cm.tab10(2), label="Bone"),
+                    Patch(color=plt.cm.tab10(3), label="Bladder"),
+                    Patch(color=plt.cm.tab10(4), label="Rectum"),
+                    Patch(color=plt.cm.tab10(5), label="Prostate")
                 ]
 
                 plt.legend(
@@ -392,7 +436,7 @@ def training_3d():
     # test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     model = modules.ThreeD_UNet().to(DEVICE)
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = lambda logits, targets: nn.BCEWithLogitsLoss()(logits, targets) + DiceLoss()(logits, targets)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
     

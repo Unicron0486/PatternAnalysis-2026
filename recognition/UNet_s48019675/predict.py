@@ -20,4 +20,7 @@ DEVICE = torch.device(
 if __name__ == "__main__":
     tr.training_2d()
     print("testing")
+    # model = modules.TwoD_UNet()
+    # model.load_state_dict(torch.load("best_unet.pth", map_location=DEVICE))
+    # model.eval()
     tr.test_2d()

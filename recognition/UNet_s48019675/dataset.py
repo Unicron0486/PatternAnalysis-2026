@@ -21,7 +21,7 @@ testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042
 # root2d = " C:/Users/s4801967/3710/MRI/MRI"
 
 # for local
-root2d = "C:/Users/hawki/Uni/2026/MRI"
+# root2d = "C:/Users/hawki/Uni/2026/MRI"
 
 def get_2d_data(path, truth = False):
     if truth == True:
