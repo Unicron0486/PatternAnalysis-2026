@@ -2,10 +2,11 @@ import numpy as np
 import nibabel as nib
 from tqdm import tqdm
 
+NUMCHANNELS = 6
 def to_channels(arr: np.ndarray, dtype=np.uint8)-> np.ndarray:
     channels = np.unique(arr)
-    res = np.zeros(arr.shape + (len(channels),), dtype=dtype)
-    for c in channels:
+    res = np.zeros(arr.shape + (NUMCHANNELS,), dtype=dtype)
+    for c in range(NUMCHANNELS):
         c = int(c)
         res[..., c:c+1][arr == c] = 1
     return res

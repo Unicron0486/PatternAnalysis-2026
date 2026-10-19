@@ -18,7 +18,10 @@ Segments3d = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042_week_0_slice_9.nii"
 
 #For remote desktop
-root2d = " C:/Users/s4801967/3710/MRI/MRI"
+# root2d = " C:/Users/s4801967/3710/MRI/MRI"
+
+# for local
+root2d = "C:/Users/hawki/Uni/2026/MRI"
 
 def get_2d_data(path, truth = False):
     if truth == True:
@@ -27,24 +30,27 @@ def get_2d_data(path, truth = False):
         pattern = re.compile(r"case_(\d+)_week_(\d+)_slice_(\d+).nii")
     
     volumes = defaultdict(list)
-
+    shapes = {}
+    count = 0
+    
     for file in os.listdir(path):
+        # if count > 10:
+        #     break
+        count +=1
         match = pattern.match(file)
         if match:
             patient_id = int(match.group(1))
             week = int(match.group(2))
             slice_num = int(match.group(3))
-
             volumes[(patient_id, week)].append((slice_num, os.path.join(path, file)))
 
     for key in volumes:
         volumes[key].sort(key=lambda x: x[0])
 
     images = {}
-
+    
     for key, slices in volumes.items():
         image_name = [slice_path for _, slice_path in slices]
-
         if truth:
             images[key] = utils.load_data_2D(image_name, normImage=False, categorical=True, dtype=np.uint8)
         else:
@@ -55,6 +61,13 @@ def get_2d_data(path, truth = False):
 def get_training_2d():
     loc = root2d + "/keras_slices_train"
     loc2 = root2d + "/keras_slices_seg_train"
+
+    data = UNet2d_Data(
+        get_2d_data(loc),
+        get_2d_data(loc2, truth=True)
+    )
+
+
 
     return UNet2d_Data(
         get_2d_data(loc),
@@ -80,14 +93,17 @@ def get_testing_2d():
 class UNet2d_Data(torch.utils.data.Dataset):
     def __init__(self, images, masks):
         self.samples = []
+        widths = set()
 
         for key in images:
             volume = images[key]
             ground_truth = masks[key]
+            assert volume.shape == ground_truth.shape[:3], f"Shape mismatch for key {key}: volume shape {volume.shape}, ground truth shape {ground_truth.shape}"
+            widths.add(volume.shape[-1])
 
             for i in range(volume.shape[0]):
                 self.samples.append((volume[i], ground_truth[i]))
-
+    
 
     def __len__(self):
         return len(self.samples)
@@ -99,7 +115,7 @@ class UNet2d_Data(torch.utils.data.Dataset):
         ground_truth = ground_truth.astype(np.uint8)
 
         image = torch.tensor(image).unsqueeze(0)
-        ground_truth = torch.tensor(ground_truth)
+        ground_truth = torch.tensor(ground_truth, dtype=torch.float32).permute(2, 0, 1)
         return image, ground_truth
 
 

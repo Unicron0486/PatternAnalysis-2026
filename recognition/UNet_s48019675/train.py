@@ -8,7 +8,7 @@ from matplotlib.patches import Patch
 
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 50
+NUM_EPOCHS = 20
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -45,14 +45,15 @@ def evaluate_2d(loader, model):
     model.eval()
     dice_total = 0.0
     count = 0
-    for images, ground_truth in loader:
-        images = images.to(DEVICE)
-        ground_truth = ground_truth.to(DEVICE)
+    with torch.no_grad():
+        for images, ground_truth in loader:
+            images = images.to(DEVICE)
+            ground_truth = ground_truth.to(DEVICE)
 
-        predictions = model(images)
-        dice_score = dice_2d(predictions, ground_truth)
-        dice_total += dice_score
-        count += 1
+            predictions = model(images)
+            dice_score = dice_2d(predictions, ground_truth)
+            dice_total += dice_score
+            count += 1
 
     if count > 0:
         return dice_total / count
@@ -76,11 +77,7 @@ def training_2d():
     # Load Data
     train_dataset = dataset.get_training_2d()
     val_dataset = dataset.get_validation_2d()
-    
-    tester = train_dataset[0]
-    valy = val_dataset[0]
-    print(tester.shape)
-    print(valy.shape)
+    print("data loaded")
 
     # test_dataset = dataset.get_testing_2d()
     
@@ -127,10 +124,11 @@ def training_2d():
                 log_file.write(
                     f"Saved model (Dice={val_dice:.4f})\n"
                 )
-
+            print("epoch done")
         log_file.flush()  # optional: writes immediately to disk
                 
     log_file.close()
+    print("training done")
     make_plots_2d(training_losses, validation_losses, dice_scores)
 
         
@@ -187,7 +185,7 @@ def test_2d():
     total_dice = 0.0
     count = 0
 
-    print(ground_truth.shape)
+
     
     with torch.no_grad():
 
@@ -379,13 +377,13 @@ def make_plots_3d(training_losses, validation_losses, dice_scores):
 
 def training_3d():
     # Load Data
-    train_dataset = dataset.get_tranining_3d()
+    train_dataset = dataset.get_training_3d()
     val_dataset = dataset.get_validation_3d()
     
-    tester = train_dataset[0]
-    valy = val_dataset[0]
-    print(tester.shape)
-    print(valy.shape)
+    # tester = train_dataset[0]
+    # valy = val_dataset[0]
+    # print(tester.shape)
+    # print(valy.shape)
 
     # test_dataset = dataset.get_testing_3d()
     
