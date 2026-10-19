@@ -11,14 +11,12 @@ DEVICE = torch.device(
     else "cpu"
 )
 
-model = modules.UNet()
-model.load_state_dict(torch.load("best_model.pth", map_location=DEVICE))
+model = modules.TwoD_UNet()
+model.load_state_dict(torch.load("best_unet.pth", map_location=DEVICE))
 model.eval()
 
 
 
 if __name__ == "__main__":
     tr.training_2d()
-    tr.validate_2d()
     tr.test_2d()
-    

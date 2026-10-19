@@ -18,7 +18,7 @@ Segments3d = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042_week_0_slice_9.nii"
 
 #For remote desktop
-root2d = " C:/Users/s4801967/3710/MRI/MRI"
+# root2d = " C:/Users/s4801967/3710/MRI/MRI"
 
 def get_2d_data(path, truth = False):
     if truth == True:
@@ -96,15 +96,15 @@ class UNet2d_Data(torch.utils.data.Dataset):
         image, ground_truth = self.samples[idx]
 
         image = image.astype(np.float32)
-        ground_truth = ground_truth.astype(np.float32)
+        ground_truth = ground_truth.astype(np.uint8)
 
         image = torch.tensor(image).unsqueeze(0)
-        ground_truth = torch.tensor(ground_truth).unsqueeze(0)
+        ground_truth = torch.tensor(ground_truth)
         return image, ground_truth
 
 
 
-def get_tranining_3d():
+def get_training_3d():
     pass
 def get_validation_3d():
     pass
