@@ -17,6 +17,9 @@ Segments3d = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 
 testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042_week_0_slice_9.nii"
 
+#For remote desktop
+root2d = " C:/Users/s4801967/3710/MRI/MRI"
+
 def get_2d_data(path, truth = False):
     if truth == True:
         pattern = re.compile(r"seg_(\d+)_week_(\d+)_slice_(\d+).nii")
