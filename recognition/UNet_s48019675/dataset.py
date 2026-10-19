@@ -3,6 +3,7 @@ from collections import defaultdict
 import numpy as np
 import utils
 import torch
+import torch.nn as nn
 import os
 import re
 import nibabel as nib
@@ -18,7 +19,7 @@ Segments3d = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042_week_0_slice_9.nii"
 
 #For remote desktop
-root2d = " C:/Users/s4801967/3710/MRI/MRI"
+root2d = "C:/Users/s4801967/3710/MRI/MRI"
 
 # for local
 # root2d = "C:/Users/hawki/Uni/2026/MRI"
@@ -114,8 +115,15 @@ class UNet2d_Data(torch.utils.data.Dataset):
         image = image.astype(np.float32)
         ground_truth = ground_truth.astype(np.uint8)
 
+        targetH = 256
+        targetW = 144
+
         image = torch.tensor(image).unsqueeze(0)
+        image = nn.functional.interpolate(image.unsqueeze(0), size=(targetH, targetW), mode='bilinear', align_corners=False).squeeze(0)
+
         ground_truth = torch.tensor(ground_truth, dtype=torch.float32).permute(2, 0, 1)
+        ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0), size=(targetH, targetW), mode='nearest').squeeze(0)
+
         return image, ground_truth
 
 
