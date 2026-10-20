@@ -1,5 +1,4 @@
-from time import time
-
+import time
 from matplotlib import pyplot as plt
 import torch
 import torch.nn as nn
@@ -14,6 +13,9 @@ NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def dice_per_class(preds, ground_truth, num_classes=6):
+    """
+    Calculate the Dice coefficient for each class in a multi-class segmentation task.
+    """
 
     preds = torch.argmax(preds, dim=1)
 
@@ -42,6 +44,9 @@ def dice_per_class(preds, ground_truth, num_classes=6):
     return scores
 
 def iou_per_class(preds, ground_truth, num_classes=6):
+    """
+    Calculate the Intersection over Union (IoU) for each class in a multi-class segmentation task.
+    """
 
     preds = torch.argmax(preds, dim=1)
 
@@ -70,6 +75,9 @@ def iou_per_class(preds, ground_truth, num_classes=6):
     return scores
 
 class DiceLoss(nn.Module):
+    """
+    Dice Loss for multi-class segmentation.
+    """
     def __init__(self, smooth=1e-6):
         super().__init__()
         self.smooth = smooth
@@ -94,6 +102,9 @@ class DiceLoss(nn.Module):
 
 #Training validation testing and saving
 def train_epoch_2d(loader, model, optimiser, criterion):
+    """
+    Train the model for one epoch on 2D data.
+    """
     model.train()
     running_loss = 0.0
     for images, ground_truth in loader:
@@ -114,6 +125,9 @@ def train_epoch_2d(loader, model, optimiser, criterion):
     return epoch_loss
 
 def dice_2d(preds , ground_truth):
+    """
+    Calculate the Dice coefficient for 2D segmentation.
+    """
     preds = torch.sigmoid(preds)
     preds = (preds > 0.5).float()
     intersection = (preds * ground_truth).sum()
@@ -122,6 +136,9 @@ def dice_2d(preds , ground_truth):
     return dice_score.item()
 
 def evaluate_2d(loader, model):
+    """
+    Evaluate the model on 2D data and return the average Dice score.
+    """
     model.eval()
     dice_total = 0.0
     count = 0
@@ -141,6 +158,9 @@ def evaluate_2d(loader, model):
         return 0.0
 
 def make_plots_2d(training_losses, validation_losses, dice_scores):
+    """
+    Generate and save plots for training loss, validation loss, and Dice scores over epochs.
+    """
     plt.figure()
     plt.plot(training_losses, label="Training Loss")
     plt.plot(validation_losses, label="Validation Loss")
@@ -154,24 +174,24 @@ def make_plots_2d(training_losses, validation_losses, dice_scores):
 
 
 def training_2d():
+    """
+    Train the 2D U-Net model on the training dataset and validate on the validation dataset.
+    """
     # Load Data
     train_dataset = dataset.get_training_2d()
     val_dataset = dataset.get_validation_2d()
     print("data loaded")
-
-    # test_dataset = dataset.get_testing_2d()
     
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    # test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
+    # Set model, criterion, and optimizer
     model = modules.TwoD_UNet().to(DEVICE)
     criterion = lambda logits, targets: nn.BCEWithLogitsLoss()(logits, targets) + DiceLoss()(logits, targets)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    
-    
-    best_dice = 0.0
 
+    # Training Loop
+    best_dice = 0.0
     training_losses = []
     validation_losses = []
     dice_scores = []
@@ -217,20 +237,11 @@ def training_2d():
     print("training done")
     make_plots_2d(training_losses, validation_losses, dice_scores)
 
-        
-
-    # dtrain = dataset.get_training_2d()
-    # dtrain_loader = torch.utils.data.DataLoader(dtrain, batch_size=BATCH_SIZE, shuffle=True)
-
-    # # Train
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # print(f"Using device: {device}")
-    # model = modules.twoD_UNet().to(device)
-
-    # criterion = nn.BCEWithLogitsLoss()
-    # optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 def validate_2d(loader, model, criterion):
+    """
+    Validate the model on 2D data and return the average loss.
+    """
     model.eval()
     running_loss = 0.0
     with torch.no_grad():
@@ -248,8 +259,10 @@ def validate_2d(loader, model, criterion):
     return epoch_loss
 
 def test_2d():
+    """
+    Test the 2D U-Net model on the testing dataset and log the results.
+    """
     test_data = dataset.get_testing_2d()
-    
     
     test_loader = torch.utils.data.DataLoader(
         test_data,
@@ -329,23 +342,9 @@ def test_2d():
                     worst_case = (image.cpu(), prediction.cpu(), ground_truth.cpu())
             
             prediction = (prediction > thresholds).float()
-            # for c in range(prediction.shape[1]):
-            #     print(
-            #         c,
-            #         prediction[0, c].sum().item()
-            #     )
-
-            # for c in range(ground_truth.shape[1]):
-            #     print(
-            #         "GT",
-            #         c,
-            #         ground_truth[0, c].sum().item()
-            #     )
 
             combined = torch.argmax(prediction, dim=1)
-            combined_truth = torch.argmax(ground_truth, dim=1)
-
-            
+            combined_truth = torch.argmax(ground_truth, dim=1)    
 
             total_dice += dice
 
@@ -368,6 +367,7 @@ def test_2d():
             "worst"
         )
 
+    # Log results
     with open("training_log.txt", "a") as log_file:
         log_file.write(
             "\nPer-Class Dice Scores\n"
@@ -421,6 +421,9 @@ def test_2d():
     log_file.close()
 
 def gen_plotting_2d(image, combined, combined_truth, count):
+    """
+    Generate and save plots for the given image, predicted segmentation, and ground truth segmentation.
+    """
     plt.figure(figsize=(16,4))
 
     plt.subplot(1,4,1)
@@ -497,6 +500,9 @@ root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 # 3D model
 def train_epoch_3d(loader, model, optimiser, criterion):
+    """
+    Train the model for one epoch on 3D data.
+    """
     model.train()
     running_loss = 0.0
     for images, ground_truth in loader:
@@ -515,6 +521,9 @@ def train_epoch_3d(loader, model, optimiser, criterion):
     return epoch_loss
 
 def validate_3d(loader, model, criterion):
+    """
+    Validate the model on 3D data and return the average loss.
+    """
     model.eval()
     running_loss = 0.0
     with torch.no_grad():
@@ -530,8 +539,10 @@ def validate_3d(loader, model, criterion):
     epoch_loss = running_loss / len(loader)
     return epoch_loss
 
-def dice_3d(preds , ground_truth, num_classes=6):
-
+def dice_3d(preds, ground_truth, num_classes=6):
+    """
+    Calculate the Dice coefficient for 3D segmentation.
+    """
     preds = torch.argmax(preds, dim=1)
 
     dice_scores = []
@@ -547,24 +558,19 @@ def dice_3d(preds , ground_truth, num_classes=6):
 
         intersection = (pred_c * gt_c).sum()
 
-        dice = (
-            2.0 * intersection + 1e-8
-        ) / (
-            pred_c.sum() +
-            gt_c.sum() +
-            1e-8
-        )
+        dice = (2.0 * intersection + 1e-8) / (pred_c.sum() + gt_c.sum() + 1e-8)
 
         dice_scores.append(dice)
 
     if len(dice_scores) == 0:
         return 0.0
 
-    return torch.mean(
-        torch.stack(dice_scores)
-    ).item()
+    return torch.mean(torch.stack(dice_scores)).item()
 
 def evaluate_3d(loader, model):
+    """
+    Evaluate the model on 3D data and return the average Dice score.
+    """
     model.eval()
     dice_total = 0.0
     count = 0
@@ -584,6 +590,9 @@ def evaluate_3d(loader, model):
         return 0.0
 
 def make_plots_3d(training_losses, validation_losses, dice_scores):
+    """
+    Generate and save plots for training loss, validation loss, and Dice scores over epochs for 3d data
+    """
     plt.figure()
     plt.plot(training_losses, label="Training Loss")
     plt.plot(validation_losses, label="Validation Loss")
@@ -598,6 +607,9 @@ def make_plots_3d(training_losses, validation_losses, dice_scores):
 
 
 class model_3d():
+    """
+    Class to handle the training, validation, and testing of a 3D U-Net model.
+    """
     def __init__(self, path1=root3d_data, path2=root3d_truth):
         super().__init__()
         self.unet = modules.ThreeD_UNet()
@@ -615,6 +627,9 @@ class model_3d():
         return self.test
 
     def train_model(self):
+        """
+        Train the 3D U-Net model on the training dataset and validate on the validation dataset.
+        """
         train_loader = torch.utils.data.DataLoader(self.train, batch_size=BATCH_SIZE, shuffle=True)
         val_loader = torch.utils.data.DataLoader(self.val, batch_size=BATCH_SIZE, shuffle=False)
         # test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
@@ -665,11 +680,10 @@ class model_3d():
         
         make_plots_3d(training_losses, validation_losses, dice_scores)
 
-    def validate_model(self):
-        # Implement validation logic here
-        pass
-
     def test_model(self):
+        """
+        Test the 3D U-Net model on the testing dataset and log the results.
+        """
         test_data = self.test
         
         test_loader = torch.utils.data.DataLoader(
@@ -851,6 +865,9 @@ class model_3d():
     
 
 def gen_ploting(name, mri_slice, gt_slice, pred_slice):
+    """
+    Generate and save plots for the given MRI slice, ground truth segmentation, and predicted segmentation.
+    """
     plt.figure(figsize=(16,5))
         
     plt.subplot(1,4,1)

@@ -11,13 +11,8 @@ DEVICE = torch.device(
     else "cpu"
 )
 
-# model = modules.TwoD_UNet()
-# model.load_state_dict(torch.load("best_unet.pth", map_location=DEVICE))
-# model.eval()
 
-
-
-if __name__ == "__main__":
+def run_2d():
     torch.cuda.reset_peak_memory_stats()
     tr.training_2d()
     if torch.cuda.is_available():
@@ -31,11 +26,9 @@ if __name__ == "__main__":
             f"Peak GPU Memory: {max_mem:.2f} GB\n"
         )
     print("testing")
-    # model = modules.TwoD_UNet()
-    # model.load_state_dict(torch.load("best_unet.pth", map_location=DEVICE))
-    # model.eval()
     tr.test_2d()
 
+def run_3d():
     print("3d training")
     torch.cuda.reset_peak_memory_stats()
     m = tr.model_3d()
@@ -52,5 +45,10 @@ if __name__ == "__main__":
         )
     print("3d testing")
     m.test_model()
-    # train_3d = tr.training_3d()
-    # tr.test_3d()
+
+     
+if __name__ == "__main__":
+    run_2d()
+    run_3d()
+
+    

@@ -250,7 +250,6 @@ class UNet3d_Data(torch.utils.data.Dataset):
             volume = images[key]
             ground_truth = masks[key]
             print(f"Volume shape: {volume.shape}, Ground truth shape: {ground_truth.shape}")
-            # assert volume.shape == ground_truth.shape[:3], f"Shape mismatch for key {key}: volume shape {volume.shape}, ground truth shape {ground_truth.shape}
             self.samples.append((volume, ground_truth))
 
     def __len__(self):
@@ -259,20 +258,13 @@ class UNet3d_Data(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         image, ground_truth = self.samples[idx]
 
-        # image = image.astype(np.float32)
-        # ground_truth = ground_truth.astype(np.uint8)
-
         targetH = 256
         targetW = 256
         targetD = 144
 
         image = torch.tensor(image, dtype=torch.float32)
-        # image = nn.functional.interpolate(image.unsqueeze(0), size=(targetD, targetH, targetW), mode='trilinear', align_corners=False).squeeze(0)
-
-        # print("GT before tensor:", ground_truth.shape)
 
         ground_truth = torch.tensor(ground_truth, dtype=torch.long).squeeze(0)
-        # ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).unsqueeze(0), size=(targetD,targetH, targetW), mode='nearest').squeeze(0).squeeze(0)
         
         return image, ground_truth
 
