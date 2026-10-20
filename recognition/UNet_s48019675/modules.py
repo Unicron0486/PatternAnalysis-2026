@@ -92,7 +92,7 @@ def threeD_double_conv(in_channels, out_channels):
     return conv
 
 class ThreeD_UNet(nn.Module):
-    def __init__(self, in_channels=1, num_classes=1, features=[16, 32, 64, 128]):
+    def __init__(self, in_channels=1, num_classes=6, features=[16, 32, 64, 128]):
         super().__init__()
 
         self.pool = nn.MaxPool3d(2, 2)

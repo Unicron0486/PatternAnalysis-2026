@@ -1,5 +1,5 @@
 from collections import defaultdict
-from random import random
+import random
 
 import numpy as np
 import utils
@@ -26,6 +26,11 @@ root2d = "C:/Users/s4801967/3710/MRI/MRI"
 # root2d = "C:/Users/hawki/Uni/2026/MRI"
 
 def get_2d_data(path, truth = False):
+    """
+    Load 2D medical image data from the specified directory.
+    path = directory containing the NIfTI files
+    truth = boolean indicating whether the data is ground truth (segmentation masks) or not
+    """
     if truth == True:
         pattern = re.compile(r"seg_(\d+)_week_(\d+)_slice_(\d+).nii")
     else:
@@ -61,6 +66,9 @@ def get_2d_data(path, truth = False):
     return images
 
 def get_training_2d():
+    """
+    Load and format 2D training data
+    """
     loc = root2d + "/keras_slices_train"
     loc2 = root2d + "/keras_slices_seg_train"
 
@@ -77,6 +85,9 @@ def get_training_2d():
     )
 
 def get_validation_2d():
+    """
+    Load and format 2D validation data
+    """
     loc = root2d + "/keras_slices_validate"
     loc2 = root2d + "/keras_slices_seg_validate"
     return UNet2d_Data(
@@ -85,6 +96,9 @@ def get_validation_2d():
     )
 
 def get_testing_2d():
+    """
+    Load and format 2D testing data
+    """
     loc = root2d + "/keras_slices_test"
     loc2 = root2d + "/keras_slices_seg_test"
     return UNet2d_Data(
@@ -94,6 +108,7 @@ def get_testing_2d():
 
 class UNet2d_Data(torch.utils.data.Dataset):
     def __init__(self, images, masks):
+        """images: dict of 2D images, masks: dict of corresponding segmentation masks"""
         self.samples = []
         widths = set()
 
@@ -103,14 +118,17 @@ class UNet2d_Data(torch.utils.data.Dataset):
             assert volume.shape == ground_truth.shape[:3], f"Shape mismatch for key {key}: volume shape {volume.shape}, ground truth shape {ground_truth.shape}"
             widths.add(volume.shape[-1])
 
-            for i in range(volume.shape[0]):
-                self.samples.append((volume[i], ground_truth[i]))
-    
+            
+            self.samples.append((volume, ground_truth))
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
+        """
+        Get a sample from the dataset.
+        Resizes the image and ground truth to a target size of 256x144.
+        """
         image, ground_truth = self.samples[idx]
 
         image = image.astype(np.float32)
@@ -128,13 +146,16 @@ class UNet2d_Data(torch.utils.data.Dataset):
         return image, ground_truth
 
 
+# 3D data loading
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 
-
-def get_3d_data():
-    images = load_3d_data(root3d_data)
-    masks = load_3d_data(root3d_truth, truth=True)
+def get_3d_data(path1 = root3d_data, path2 = root3d_truth):
+    """
+    Load 3D medical image data from the specified directories and return training, validation, and testing datasets.
+    """
+    images = load_3d_data(path1)
+    masks = load_3d_data(path2, truth=True)
 
     # (train_images, train_masks), (val_images, val_masks), (test_images, test_masks) = seperate(images, masks)
     train, validate, test = seperate(images, masks)
@@ -146,13 +167,22 @@ def get_3d_data():
     return dtrain, dvalidate, dtest
 
 def load_3d_data(path, truth = False):
+    """
+    Load 3D medical image data from the specified directory.
+    path = directory containing the NIfTI files
+    truth = boolean indicating whether the data is ground truth (segmentation masks) or not
+    """
     if truth:
         pattern = re.compile(r"(\w+)(\d+)_Week(\d)_SEMANTIC.nii.gz")
     else:
         pattern = re.compile(r"(\w+)(\d+)_Week(\d)_LFOV.nii.gz")
 
     volumes = defaultdict(list)
+    count = 0
     for file in os.listdir(path):
+        count += 1
+        if count > 11:
+            break
         match = pattern.match(file)
         if match:
             patient_id = match.group(1) + match.group(2)
@@ -161,14 +191,11 @@ def load_3d_data(path, truth = False):
 
             volumes[(patient_id, week)].append(file_path)
 
-    for key in volumes:
-            volumes[key].sort(key=lambda x: x[0])
-
     images = {}
     for key, slices in volumes.items():
-        image_name = [slice_path for _, slice_path in slices]
+        image_name = [slice_path for slice_path in slices]
         if truth:
-            images[key] = utils.load_data_3D(image_name, normImage=False, categorical=True, dtype=np.uint8)
+            images[key] = utils.load_data_3D(image_name, normImage=False, dtype=np.uint8)
         else:
             images[key] = utils.load_data_3D(image_name, normImage=True)
 
@@ -176,6 +203,9 @@ def load_3d_data(path, truth = False):
     return images
 
 def seperate(images, masks):
+    """
+    Separate the provided images and masks into training, validation, and testing datasets based on unique patient IDs and random selection.
+    """
     random.seed(42)
     train_images = {}
     train_masks = {}
@@ -211,12 +241,6 @@ def seperate(images, masks):
             test_masks[key] = masks[key]
    
     return (train_images, train_masks), (val_images, val_masks), (test_images, test_masks)
-
-def get_training_3d():
-    return TRAINING_3d
-def get_validation_3d():
-    return VALIDATION_3d
-def get_testing_3d():
     return TESTING_3d
 
 class UNet3d_Data(torch.utils.data.Dataset):
@@ -226,9 +250,8 @@ class UNet3d_Data(torch.utils.data.Dataset):
             volume = images[key]
             ground_truth = masks[key]
             print(f"Volume shape: {volume.shape}, Ground truth shape: {ground_truth.shape}")
-            # assert volume.shape == ground_truth.shape[:3], f"Shape mismatch for key {key}: volume shape {volume.shape}, ground truth shape {ground_truth.shape}"
-            for i in range(volume.shape[0]):
-                self.samples.append((volume[i], ground_truth[i]))
+            # assert volume.shape == ground_truth.shape[:3], f"Shape mismatch for key {key}: volume shape {volume.shape}, ground truth shape {ground_truth.shape}
+            self.samples.append((volume, ground_truth))
 
     def __len__(self):
         return len(self.samples)
@@ -236,17 +259,20 @@ class UNet3d_Data(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         image, ground_truth = self.samples[idx]
 
-        image = image.astype(np.float32)
-        ground_truth = ground_truth.astype(np.uint8)
+        # image = image.astype(np.float32)
+        # ground_truth = ground_truth.astype(np.uint8)
 
         targetH = 256
-        targetW = 144
+        targetW = 256
+        targetD = 144
 
-        image = torch.tensor(image).unsqueeze(0)
-        # image = nn.functional.interpolate(image.unsqueeze(0), size=(targetH, targetW), mode='bilinear', align_corners=False).squeeze(0)
+        image = torch.tensor(image, dtype=torch.float32)
+        # image = nn.functional.interpolate(image.unsqueeze(0), size=(targetD, targetH, targetW), mode='trilinear', align_corners=False).squeeze(0)
 
-        ground_truth = torch.tensor(ground_truth, dtype=torch.float32).permute(2, 0, 1)
-        # ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0), size=(targetH, targetW), mode='nearest').squeeze(0)
+        # print("GT before tensor:", ground_truth.shape)
 
+        ground_truth = torch.tensor(ground_truth, dtype=torch.long).squeeze(0)
+        # ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).unsqueeze(0), size=(targetD,targetH, targetW), mode='nearest').squeeze(0).squeeze(0)
+        
         return image, ground_truth
 
