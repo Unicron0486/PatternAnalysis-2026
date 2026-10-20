@@ -20,7 +20,7 @@ Segments3d = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042_week_0_slice_9.nii"
 
 #For remote desktop
-root2d = "C:/Users/s4801967/3710/MRI/MRI"
+# root2d = "C:/Users/s4801967/3710/MRI/MRI"
 
 # for local
 # root2d = "C:/Users/hawki/Uni/2026/MRI"
