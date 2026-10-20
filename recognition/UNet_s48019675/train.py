@@ -1,3 +1,5 @@
+from time import time
+
 from matplotlib import pyplot as plt
 import torch
 import torch.nn as nn
@@ -8,8 +10,64 @@ from matplotlib.patches import Patch
 
 BATCH_SIZE = 2
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 5
+NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def dice_per_class(preds, ground_truth, num_classes=6):
+
+    preds = torch.argmax(preds, dim=1)
+
+    scores = {}
+
+    for c in range(num_classes):
+
+        pred_c = (preds == c).float()
+        gt_c = (ground_truth == c).float()
+
+        if gt_c.sum() == 0:
+            continue
+
+        intersection = (pred_c * gt_c).sum()
+
+        dice = (
+            2.0 * intersection + 1e-8
+        ) / (
+            pred_c.sum()
+            + gt_c.sum()
+            + 1e-8
+        )
+
+        scores[c] = dice.item()
+
+    return scores
+
+def iou_per_class(preds, ground_truth, num_classes=6):
+
+    preds = torch.argmax(preds, dim=1)
+
+    scores = {}
+
+    for c in range(num_classes):
+
+        pred_c = (preds == c)
+        gt_c = (ground_truth == c)
+
+        if gt_c.sum() == 0:
+            continue
+
+        intersection = (pred_c & gt_c).sum()
+
+        union = (pred_c | gt_c).sum()
+
+        iou = (
+            intersection + 1e-8
+        ) / (
+            union + 1e-8
+        )
+
+        scores[c] = iou.item()
+
+    return scores
 
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
@@ -118,11 +176,15 @@ def training_2d():
     validation_losses = []
     dice_scores = []
     print("traing initalised")
-    with open("training_log.txt", "w") as log_file:
+    with open("training_log.txt", "a") as log_file:
         for epoch in range(NUM_EPOCHS):
+            start_time = time.time()
+
             train_loss = train_epoch_2d(train_loader, model, optimizer, criterion)
             val_loss = validate_2d(val_loader, model, criterion)
             val_dice = evaluate_2d(val_loader, model)
+
+            epoch_time = time.time() - start_time
 
             training_losses.append(train_loss)
             validation_losses.append(val_loss)
@@ -132,7 +194,8 @@ def training_2d():
                 f"Epoch {epoch+1:03d} "
                 f"Train Loss {train_loss:.4f} "
                 f"Val Loss {val_loss:.4f} "
-                f"Dice {val_dice:.4f}\n"
+                f"Dice {val_dice:.4f} "
+                f"Time {epoch_time:.2f}s\n"
             )
 
             if val_dice > best_dice:
@@ -208,8 +271,21 @@ def test_2d():
     total_dice = 0.0
     count = 0
 
+    running_class_dice = {
+        c: 0.0 for c in range(6)
+    }
+    running_class_iou = {
+        c: 0.0 for c in range(6)
+    }
+    class_count = {
+        c: 0 for c in range(6)
+    }
 
-    
+    best_dice = -1
+    worst_dice = 2
+    best_case = None
+    worst_case = None
+    inference_times = []
     with torch.no_grad():
 
         for image, ground_truth in test_loader:
@@ -217,10 +293,13 @@ def test_2d():
             image = image.to(DEVICE)
             ground_truth = ground_truth.to(DEVICE)
 
-
+            start_time = time.time()
             output = model(image)
-
+            inference_time = time.time() - start_time
+            inference_times.append(inference_time)
             
+            class_dice = dice_per_class(output, ground_truth, num_classes=6)
+            class_iou = iou_per_class(output, ground_truth, num_classes=6)
             thresholds = torch.tensor([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], device=DEVICE).view(1, 6, 1, 1)
             prediction = torch.sigmoid(output)
 
@@ -231,6 +310,23 @@ def test_2d():
                             f"Max: {prediction[:, c].max().item():.4f} "
                             f"Mean: {prediction[:, c].mean().item():.4f}\n"
                         )
+
+                for cls, dice_score in class_dice.items():
+                    running_class_dice[cls] += dice_score
+                    class_count[cls] += 1
+                    running_class_iou[cls] += class_iou[cls]
+
+                dice = dice_2d(
+                                output,
+                                ground_truth
+                            )
+                
+                if dice > best_dice:
+                    best_dice = dice
+                    best_case = (image.cpu(), prediction.cpu(), ground_truth.cpu())
+                if dice < worst_dice:
+                    worst_dice = dice
+                    worst_case = (image.cpu(), prediction.cpu(), ground_truth.cpu())
             
             prediction = (prediction > thresholds).float()
             # for c in range(prediction.shape[1]):
@@ -249,102 +345,153 @@ def test_2d():
             combined = torch.argmax(prediction, dim=1)
             combined_truth = torch.argmax(ground_truth, dim=1)
 
-            dice = dice_2d(
-                output,
-                ground_truth
-            )
+            
 
             total_dice += dice
 
             count += 1
 
-            #
-            # Display first few predictions
-            #
+    if best_case is not None:
+        best_image, best_prediction, best_ground_truth = best_case
+        gen_plotting_2d(
+            best_image,
+            torch.argmax(best_prediction, dim=1),
+            torch.argmax(best_ground_truth, dim=1),
+            "best"
+        )
+    if worst_case is not None:
+        worst_image, worst_prediction, worst_ground_truth = worst_case
+        gen_plotting_2d(
+            worst_image,
+            torch.argmax(worst_prediction, dim=1),
+            torch.argmax(worst_ground_truth, dim=1),
+            "worst"
+        )
 
-            if count <= 5:
+    with open("training_log.txt", "a") as log_file:
+        log_file.write(
+            "\nPer-Class Dice Scores\n"
+        )
+        overall_iou = 0.0
+        valid_class_count = 0
+        for c in range(6):
 
-                plt.figure(figsize=(16,4))
+            if class_count[c] > 0:
 
-                plt.subplot(1,4,1)
-                plt.imshow(
-                    image[0,0].cpu().numpy(),
-                    cmap="gray"
+                avg = (
+                    running_class_dice[c]
+                    / class_count[c]
                 )
-                plt.title("MRI")
-                plt.axis("off")
-
-                plt.subplot(1,4,2)
-                plt.imshow(
-                    combined_truth[0].cpu().numpy(),
-                    cmap="tab10",
-                    vmin=0,
-                    vmax=4
+                overall_iou += (
+                    running_class_iou[c]
+                    / class_count[c]
                 )
-                plt.title("Ground Truth")
-                plt.axis("off")
+                valid_class_count += 1
 
-                plt.subplot(1,4,3)
-                plt.imshow(
-                    combined[0].cpu().numpy(),
-                    cmap="tab10",
-                    vmin=0,
-                    vmax=4
-                )
-                plt.title("Prediction")
-                plt.axis("off")
-
-                plt.subplot(1,4,4)
-                plt.imshow(
-                    image[0,0].cpu().numpy(),
-                    cmap="gray"
-                )
-
-                plt.imshow(
-                    combined[0].cpu().numpy(),
-                    cmap="tab10",
-                    alpha=0.4,
-                    vmin=0,
-                    vmax=4
+                log_file.write(
+                    f"class {c}: "
+                    f"{avg:.4f}\n"
                 )
 
-                plt.title("Overlay")
-                plt.axis("off")
-
-                legend_items = [
-                    Patch(color=plt.cm.tab10(0), label="Background"),
-                    Patch(color=plt.cm.tab10(1), label="Body"),
-                    Patch(color=plt.cm.tab10(2), label="Bone"),
-                    Patch(color=plt.cm.tab10(3), label="Bladder"),
-                    Patch(color=plt.cm.tab10(4), label="Rectum"),
-                    Patch(color=plt.cm.tab10(5), label="Prostate")
-                ]
-
-                plt.legend(
-                    handles=legend_items,
-                    bbox_to_anchor=(1.05, 1),
-                    loc="upper left"
+                avg_iou = (
+                    running_class_iou[c]
+                    / class_count[c]
                 )
 
-                plt.tight_layout()
-
-                plt.savefig(
-                        f"prediction_{count}.png",
-                        dpi=300,
-                        bbox_inches="tight"
-                    )
-
-                plt.close()
-
+                log_file.write(
+                    f"class {c} IoU: "
+                    f"{avg_iou:.4f}\n"
+                )
+        log_file.write(
+            f"Overall IoU: "
+            f"{overall_iou / valid_class_count:.4f}\n"
+        )
     average_dice = total_dice / count
-
     with open("training_log.txt", "a") as log_file:
         log_file.write(
             f"Average Dice Score: {average_dice:.4f}\n"
         )
+
+    average_inference_time = sum(inference_times) / len(inference_times)
+    with open("training_log.txt", "a") as log_file:
+        log_file.write(
+            f"Average Inference Time per Image: {average_inference_time:.4f} seconds\n"
+        )
+
     log_file.close()
 
+def gen_plotting_2d(image, combined, combined_truth, count):
+    plt.figure(figsize=(16,4))
 
+    plt.subplot(1,4,1)
+    plt.imshow(
+        image[0,0].cpu().numpy(),
+        cmap="gray"
+    )
+    plt.title("MRI")
+    plt.axis("off")
+
+    plt.subplot(1,4,2)
+    plt.imshow(
+        combined_truth[0].cpu().numpy(),
+        cmap="tab10",
+        vmin=0,
+        vmax=4
+    )
+    plt.title("Ground Truth")
+    plt.axis("off")
+
+    plt.subplot(1,4,3)
+    plt.imshow(
+        combined[0].cpu().numpy(),
+        cmap="tab10",
+        vmin=0,
+        vmax=4
+    )
+    plt.title("Prediction")
+    plt.axis("off")
+
+    plt.subplot(1,4,4)
+    plt.imshow(
+        image[0,0].cpu().numpy(),
+        cmap="gray"
+    )
+
+    plt.imshow(
+        combined[0].cpu().numpy(),
+        cmap="tab10",
+        alpha=0.4,
+        vmin=0,
+        vmax=4
+    )
+
+    plt.title("Overlay")
+    plt.axis("off")
+
+    legend_items = [
+        Patch(color=plt.cm.tab10(0), label="Background"),
+        Patch(color=plt.cm.tab10(1), label="Body"),
+        Patch(color=plt.cm.tab10(2), label="Bone"),
+        Patch(color=plt.cm.tab10(3), label="Bladder"),
+        Patch(color=plt.cm.tab10(4), label="Rectum"),
+        Patch(color=plt.cm.tab10(5), label="Prostate")
+    ]
+
+    plt.legend(
+        handles=legend_items,
+        bbox_to_anchor=(1.05, 1),
+        loc="upper left"
+    )
+
+    plt.tight_layout()
+
+    plt.savefig(
+            f"prediction_{count}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+    plt.close()
 
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
@@ -484,9 +631,11 @@ class model_3d():
         dice_scores = []
         with open("training_log3d.txt", "w") as log_file:
             for epoch in range(NUM_EPOCHS):
+                start_time = time.time()
                 train_loss = train_epoch_3d(train_loader, model, optimizer, criterion)
                 val_loss = validate_3d(val_loader, model, criterion)
                 val_dice = evaluate_3d(val_loader, model)
+                epoch_time = time.time() - start_time
         
                 training_losses.append(train_loss)
                 validation_losses.append(val_loss)
@@ -496,6 +645,7 @@ class model_3d():
                     f"Epoch {epoch+1:03d} "
                     f"Train Loss {train_loss:.4f} "
                     f"Val Loss {val_loss:.4f} "
+                    f"Epoch Time {epoch_time:.2f}s "
                     f"Dice {val_dice:.4f}\n"
                 )
         
@@ -543,136 +693,244 @@ class model_3d():
     
         total_dice = 0.0
         count = 0
-    
+        running_class_dice = {
+            c: 0.0 for c in range(6)
+        }
+
+        class_count = {
+            c: 0 for c in range(6)
+        }
+
+        running_class_iou = {
+            c: 0.0 for c in range(6)
+        }
+
+        inference_time = []
+        best_dice = -1
+        worst_dice = 2
+
+        best_case = None
+        worst_case = None
+
         with torch.no_grad():
-    
             for image, ground_truth in test_loader:
     
                 image = image.to(DEVICE)
                 ground_truth = ground_truth.to(DEVICE)
-    
+
+                start_time = time.time()
                 output = model(image)
+                elapsed_time = time.time() - start_time
+                inference_time.append(elapsed_time)
+
+                class_dice = dice_per_class(
+                    output,
+                    ground_truth,
+                    num_classes=6
+                )
+
+                class_iou = iou_per_class(
+                    output,
+                    ground_truth,
+                    num_classes=6
+                )
+
+                for cls, score in class_dice.items():
+                    running_class_dice[cls] += score
+                    class_count[cls] += 1
+                for cls, score in class_iou.items():
+                    running_class_iou[cls] += score
     
                 #
                 # CrossEntropy output:
                 # [B,6,D,H,W]
                 #
-                prediction = torch.argmax(
-                    output,
-                    dim=1
-                )
     
                 #
                 # Ground truth:
                 # [B,D,H,W]
                 #
                 dice = dice_3d(
-                    prediction,
+                    output,
                     ground_truth
                 )
+
+                mid = image.shape[2] // 2
+                    
+                mri_slice = image[0, 0, mid].cpu().numpy()
+
+                gt_slice = ground_truth[0, mid].cpu().numpy()
+                pred = torch.argmax(output, dim=1)
+                pred_slice = pred[0, mid].cpu().numpy()
+
+                if dice > best_dice:
+                    best_dice = dice
+
+                    best_case = (
+                        mri_slice.copy(),
+                        gt_slice.copy(),
+                        pred_slice.copy()
+                    )
+
+                if dice < worst_dice:
+                    worst_dice = dice
+
+                    worst_case = (
+                        mri_slice.copy(),
+                        gt_slice.copy(),
+                        pred_slice.copy()
+                    )
     
                 total_dice += dice
                 count += 1
     
-                if count <= 5:
-    
-                    #
-                    # centre slice
-                    #
-                    mid = image.shape[2] // 2
-    
-                    mri_slice = image[
-                        0, 0, mid
-                    ].cpu().numpy()
-    
-                    gt_slice = ground_truth[
-                        0, mid
-                    ].cpu().numpy()
-    
-                    pred_slice = prediction[
-                        0, mid
-                    ].cpu().numpy()
-    
-                    plt.figure(figsize=(16,4))
-    
-                    plt.subplot(1,4,1)
-                    plt.imshow(
-                        mri_slice,
-                        cmap="gray"
-                    )
-                    plt.title("MRI")
-                    plt.axis("off")
-    
-                    plt.subplot(1,4,2)
-                    plt.imshow(
-                        gt_slice,
-                        cmap="tab10",
-                        vmin=0,
-                        vmax=5
-                    )
-                    plt.title("Ground Truth")
-                    plt.axis("off")
-    
-                    plt.subplot(1,4,3)
-                    plt.imshow(
-                        pred_slice,
-                        cmap="tab10",
-                        vmin=0,
-                        vmax=5
-                    )
-                    plt.title("Prediction")
-                    plt.axis("off")
-    
-                    plt.subplot(1,4,4)
-                    plt.imshow(
-                        mri_slice,
-                        cmap="gray"
-                    )
-    
-                    plt.imshow(
-                        pred_slice,
-                        cmap="tab10",
-                        alpha=0.4,
-                        vmin=0,
-                        vmax=5
-                    )
-    
-                    plt.title("Overlay")
-                    plt.axis("off")
-    
-                    legend_items = [
-                        Patch(color=plt.cm.tab10(0), label="Background"),
-                        Patch(color=plt.cm.tab10(1), label=""),
-                        Patch(color=plt.cm.tab10(2), label="Body"),
-                        Patch(color=plt.cm.tab10(3), label="Bladder"),
-                        Patch(color=plt.cm.tab10(4), label="Rectum"),
-                        Patch(color=plt.cm.tab10(5), label="Prostate")
-                    ]
-    
-                    plt.legend(
-                        handles=legend_items,
-                        bbox_to_anchor=(1.05, 1),
-                        loc="upper left"
-                    )
-    
-                    plt.tight_layout()
-    
-                    plt.savefig(
-                        f"prediction3d_{count}.png",
-                        dpi=300,
-                        bbox_inches="tight"
-                    )
-    
-                    plt.close()
-    
-        average_dice = total_dice / count
-    
+                    
+        if best_case is not None:
+            gen_ploting(
+                "best",
+                best_case[0],
+                best_case[1],
+                best_case[2]
+            )
+
+        if worst_case is not None:
+            gen_ploting(
+                "worst",
+                worst_case[0],
+                worst_case[1],
+                worst_case[2]
+            )
+        
+        avg_time = sum(inference_time) / len(inference_time)
         with open("training_log3d.txt", "a") as log_file:
+            log_file.write("\nPer-Class Dice Scores\n")
+            overall = 0
+            valid = 0
+            for c in range(6):
+                if class_count[c] > 0:
+                    avg = (
+                        running_class_dice[c]
+                        / class_count[c]
+                    )
+                    overall += avg
+                    valid += 1
+                    log_file.write(
+                        f"class {c}: "
+                        f"{avg:.4f}\n"
+                    )
+
             log_file.write(
-                f"Average Dice Score: {average_dice:.4f}\n"
+                f"\nOverall Dice Score: {overall / valid if valid > 0 else 0.0:.4f}\n"
+            )
+
+
+            log_file.write("\nPer-Class IoU Scores\n")
+            overall = 0
+            valid = 0
+            for c in range(6):
+                if class_count[c] > 0:
+                    avg = (
+                        running_class_iou[c]
+                        / class_count[c]
+                    )
+                    overall += avg
+                    valid += 1
+                    log_file.write(
+                        f"class {c}: "
+                        f"{avg:.4f}\n"
+                    )
+            overall = overall / valid if valid > 0 else 0.0
+            log_file.write(
+                f"Overall: {overall:.4f}\n"
+            )
+
+            log_file.write(
+                f"\nAverage Inference Time: "
+                f"{avg_time:.4f}s\n"
             )
     
-        print(
-            f"Average Dice Score: {average_dice:.4f}"
-        )
+
+def gen_ploting(name, mri_slice, gt_slice, pred_slice):
+    plt.figure(figsize=(16,5))
         
+    plt.subplot(1,4,1)
+    plt.imshow(
+        mri_slice,
+        cmap="gray"
+    )
+    plt.title("MRI")
+    plt.axis("off")
+
+    plt.subplot(1,4,2)
+    plt.imshow(
+        gt_slice,
+        cmap="tab10",
+        vmin=0,
+        vmax=5
+    )
+    plt.title("Ground Truth")
+    plt.axis("off")
+
+    plt.subplot(1,4,3)
+    plt.imshow(
+        pred_slice,
+        cmap="tab10",
+        vmin=0,
+        vmax=5
+    )
+    plt.title("Prediction")
+    plt.axis("off")
+
+    plt.subplot(1,4,4)
+    plt.imshow(
+        mri_slice,
+        cmap="gray"
+    )
+
+    plt.imshow(
+        pred_slice,
+        cmap="tab10",
+        alpha=0.4,
+        vmin=0,
+        vmax=5
+    )
+    plt.title("Overlay")
+    plt.axis("off")
+
+    diference = gt_slice - pred_slice
+    plt.subplot(1,4,5)
+    plt.imshow(
+        diference,
+        cmap="bwr",
+        vmin=-5,
+        vmax=5
+    )
+    plt.title("Difference (GT - Pred)")
+    plt.axis("off")
+
+   
+
+    legend_items = [
+        Patch(color=plt.cm.tab10(0), label="Background"),
+        Patch(color=plt.cm.tab10(1), label=""),
+        Patch(color=plt.cm.tab10(2), label="Body"),
+        Patch(color=plt.cm.tab10(3), label="Bladder"),
+        Patch(color=plt.cm.tab10(4), label="Rectum"),
+        Patch(color=plt.cm.tab10(5), label="Prostate")
+    ]
+
+    plt.legend(
+        handles=legend_items,
+        bbox_to_anchor=(1.05, 1),
+        loc="upper left"
+    )
+
+    plt.tight_layout()
+
+    plt.savefig(
+        f"prediction3d_{name}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.close()

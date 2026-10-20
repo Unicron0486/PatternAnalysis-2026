@@ -180,9 +180,9 @@ def load_3d_data(path, truth = False):
     volumes = defaultdict(list)
     count = 0
     for file in os.listdir(path):
-        count += 1
-        if count > 11:
-            break
+        # count += 1
+        # if count > 11:
+        #     break
         match = pattern.match(file)
         if match:
             patient_id = match.group(1) + match.group(2)
