@@ -41,9 +41,9 @@ def get_2d_data(path, truth = False):
     count = 0
     
     for file in os.listdir(path):
-        if count > 10:
-            break
-        count +=1
+        # if count > 10:
+        #     break
+        # count +=1
         match = pattern.match(file)
         if match:
             patient_id = int(match.group(1))
@@ -145,8 +145,8 @@ class UNet2d_Data(torch.utils.data.Dataset):
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 
-root3d_data = "C:/Users/hawki/Uni/2026/MRI/semantic_MRs"
-root3d_truth = "C:/Users/hawki/Uni/2026/MRI/semantic_labels_only"
+# root3d_data = "C:/Users/hawki/Uni/2026/MRI/semantic_MRs"
+# root3d_truth = "C:/Users/hawki/Uni/2026/MRI/semantic_labels_only"
 
 def get_3d_data(path1 = root3d_data, path2 = root3d_truth):
     """
@@ -179,7 +179,7 @@ def load_3d_data(path, truth = False):
     count = 0
     for file in os.listdir(path):
         # count += 1
-        # if count > 11:
+        # if count > 5:
         #     break
         match = pattern.match(file)
         if match:
@@ -239,8 +239,8 @@ def seperate(images, masks):
             test_masks[key] = masks[key]
    
     return (train_images, train_masks), (val_images, val_masks), (test_images, test_masks)
-    return TESTING_3d
 
+from collections import Counter
 class UNet3d_Data(torch.utils.data.Dataset):
     def __init__(self, images, masks):
         self.samples = []
@@ -249,32 +249,32 @@ class UNet3d_Data(torch.utils.data.Dataset):
             ground_truth = masks[key]
             print(f"Volume shape: {volume.shape}, Ground truth shape: {ground_truth.shape}")
             self.samples.append((volume, ground_truth))
+            self.sizes = Counter()
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
         image, ground_truth = self.samples[idx]
-        from collections import Counter
+        
 
         
 
         targetH = 256
         targetW = 256
-        targetD = 144
+        targetD = 128
 
         image = torch.tensor(image, dtype=torch.float32)
         ground_truth = torch.tensor(ground_truth, dtype=torch.long)
 
-        sizes = Counter()
         
-        for key, volume in image.items():
-            sizes[volume.shape] += 1
+        
+    
+        self.sizes[image.shape] += 1
 
-        print(sizes)
         image = nn.functional.interpolate(image.unsqueeze(0), size=(targetD, targetW, targetH), mode='trilinear', align_corners=False).squeeze(0)
 
-        ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).float(), size=(targetD, targetW, targetH), mode='nearest').squeeze(0).long()
+        ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).float(), size=(targetD, targetW, targetH), mode='nearest').squeeze(0).squeeze(0).long()
         
         return image, ground_truth
 
