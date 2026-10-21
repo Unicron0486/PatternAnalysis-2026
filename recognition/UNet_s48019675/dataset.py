@@ -41,9 +41,9 @@ def get_2d_data(path, truth = False):
     count = 0
     
     for file in os.listdir(path):
-        # if count > 10:
-        #     break
-        # count +=1
+        if count > 10:
+            break
+        count +=1
         match = pattern.match(file)
         if match:
             patient_id = int(match.group(1))
@@ -178,9 +178,9 @@ def load_3d_data(path, truth = False):
     volumes = defaultdict(list)
     count = 0
     for file in os.listdir(path):
-        # count += 1
-        # if count > 5:
-        #     break
+        count += 1
+        if count > 10:
+            break
         match = pattern.match(file)
         if match:
             patient_id = match.group(1) + match.group(2)
@@ -268,7 +268,7 @@ class UNet3d_Data(torch.utils.data.Dataset):
         
         
     
-        self.sizes[image.shape] += 1
+        # self.sizes[image.shape] += 1
 
         image = nn.functional.interpolate(image.unsqueeze(0), size=(targetD, targetW, targetH), mode='trilinear', align_corners=False).squeeze(0)
 

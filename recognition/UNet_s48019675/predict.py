@@ -48,7 +48,7 @@ def run_3d():
 
      
 if __name__ == "__main__":
-    #run_2d()
-    run_3d()
+    run_2d()
+    #run_3d()
 
     

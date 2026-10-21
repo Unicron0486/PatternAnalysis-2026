@@ -496,11 +496,11 @@ def gen_plotting_2d(image, combined, combined_truth, count):
 
     plt.close()
 
-# root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
-# root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
+root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
+root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 
-root3d_data = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_MRs"
-root3d_truth = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_labels_only"
+# root3d_data = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_MRs"
+# root3d_truth = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_labels_only"
 # 3D model
 def train_epoch_3d(loader, model, optimiser, criterion):
     """
