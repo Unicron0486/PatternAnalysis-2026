@@ -9,7 +9,7 @@ from matplotlib.patches import Patch
 
 BATCH_SIZE = 2
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 10
+NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def dice_per_class(preds, ground_truth, num_classes=6):
@@ -498,6 +498,9 @@ def gen_plotting_2d(image, combined, combined_truth, count):
 
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
+
+root3d_data = "C:/Users/hawki/Uni/2026/MRI/HipMRI_Study_open/semantic_MRs"
+root3d_truth = "C:/Users/hawki/Uni/2026/MRI/HipMRI_Study_open/semantic_labels_only"
 # 3D model
 def train_epoch_3d(loader, model, optimiser, criterion):
     """

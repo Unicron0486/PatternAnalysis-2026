@@ -23,7 +23,7 @@ testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042
 # root2d = "C:/Users/s4801967/3710/MRI/MRI"
 
 # for local
-root2d = "C:/Users/hawki/Uni/2026/MRI"
+# root2d = "C:/Users/hawki/Uni/2026/MRI"
 
 def get_2d_data(path, truth = False):
     """
@@ -131,8 +131,7 @@ class UNet2d_Data(torch.utils.data.Dataset):
 
         targetH = 256
         targetW = 144
-        print("image raw:", image.shape)
-        print("gt raw:", ground_truth.shape)
+
         image = torch.tensor(image, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         image = nn.functional.interpolate(image, size=(targetH, targetW), mode='bilinear', align_corners=False).squeeze(0)
 
@@ -145,6 +144,9 @@ class UNet2d_Data(torch.utils.data.Dataset):
 # 3D data loading
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
+
+root3d_data = "C:/Users/hawki/Uni/2026/MRI/semantic_MRs"
+root3d_truth = "C:/Users/hawki/Uni/2026/MRI/semantic_labels_only"
 
 def get_3d_data(path1 = root3d_data, path2 = root3d_truth):
     """
@@ -253,14 +255,26 @@ class UNet3d_Data(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         image, ground_truth = self.samples[idx]
+        from collections import Counter
+
+        
 
         targetH = 256
         targetW = 256
         targetD = 144
 
         image = torch.tensor(image, dtype=torch.float32)
+        ground_truth = torch.tensor(ground_truth, dtype=torch.long)
 
-        ground_truth = torch.tensor(ground_truth, dtype=torch.long).squeeze(0)
+        sizes = Counter()
+        
+        for key, volume in image.items():
+            sizes[volume.shape] += 1
+
+        print(sizes)
+        image = nn.functional.interpolate(image.unsqueeze(0), size=(targetD, targetW, targetH), mode='trilinear', align_corners=False).squeeze(0)
+
+        ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).float(), size=(targetD, targetW, targetH), mode='nearest').squeeze(0).long()
         
         return image, ground_truth
 
