@@ -23,7 +23,7 @@ testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042
 # root2d = "C:/Users/s4801967/3710/MRI/MRI"
 
 # for local
-# root2d = "C:/Users/hawki/Uni/2026/MRI"
+root2d = "C:/Users/hawki/Uni/2026/MRI"
 
 def get_2d_data(path, truth = False):
     """
@@ -41,8 +41,8 @@ def get_2d_data(path, truth = False):
     count = 0
     
     for file in os.listdir(path):
-        # if count > 10:
-        #     break
+        if count > 10:
+            break
         count +=1
         match = pattern.match(file)
         if match:
@@ -71,12 +71,6 @@ def get_training_2d():
     """
     loc = root2d + "/keras_slices_train"
     loc2 = root2d + "/keras_slices_seg_train"
-
-    data = UNet2d_Data(
-        get_2d_data(loc),
-        get_2d_data(loc2, truth=True)
-    )
-
 
 
     return UNet2d_Data(
@@ -119,7 +113,8 @@ class UNet2d_Data(torch.utils.data.Dataset):
             widths.add(volume.shape[-1])
 
             
-            self.samples.append((volume, ground_truth))
+            for i in range(volume.shape[0]):
+                self.samples.append((volume[i], ground_truth[i]))
 
     def __len__(self):
         return len(self.samples)
@@ -131,14 +126,15 @@ class UNet2d_Data(torch.utils.data.Dataset):
         """
         image, ground_truth = self.samples[idx]
 
-        image = image.astype(np.float32)
-        ground_truth = ground_truth.astype(np.uint8)
+        # image = image.astype(np.float32)
+        # ground_truth = ground_truth.astype(np.uint8)
 
         targetH = 256
         targetW = 144
-
-        image = torch.tensor(image).unsqueeze(0)
-        image = nn.functional.interpolate(image.unsqueeze(0), size=(targetH, targetW), mode='bilinear', align_corners=False).squeeze(0)
+        print("image raw:", image.shape)
+        print("gt raw:", ground_truth.shape)
+        image = torch.tensor(image, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        image = nn.functional.interpolate(image, size=(targetH, targetW), mode='bilinear', align_corners=False).squeeze(0)
 
         ground_truth = torch.tensor(ground_truth, dtype=torch.float32).permute(2, 0, 1)
         ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0), size=(targetH, targetW), mode='nearest').squeeze(0)

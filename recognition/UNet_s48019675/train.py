@@ -9,7 +9,7 @@ from matplotlib.patches import Patch
 
 BATCH_SIZE = 2
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 50
+NUM_EPOCHS = 10
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def dice_per_class(preds, ground_truth, num_classes=6):
