@@ -680,7 +680,7 @@ class model_3d():
                         f"Saved model (Dice={val_dice:.4f})\n"
                     )
                 print("epoch done")
-        print(model.sizes)
+        # print(model.sizes)
         make_plots_3d(training_losses, validation_losses, dice_scores)
 
     def test_model(self):
@@ -873,7 +873,7 @@ def gen_ploting(name, mri_slice, gt_slice, pred_slice):
     """
     plt.figure(figsize=(16,5))
         
-    plt.subplot(1,4,1)
+    plt.subplot(1,5,1)
     plt.imshow(
         mri_slice,
         cmap="gray"
@@ -881,7 +881,7 @@ def gen_ploting(name, mri_slice, gt_slice, pred_slice):
     plt.title("MRI")
     plt.axis("off")
 
-    plt.subplot(1,4,2)
+    plt.subplot(1,5,2)
     plt.imshow(
         gt_slice,
         cmap="tab10",
@@ -891,7 +891,7 @@ def gen_ploting(name, mri_slice, gt_slice, pred_slice):
     plt.title("Ground Truth")
     plt.axis("off")
 
-    plt.subplot(1,4,3)
+    plt.subplot(1,5,3)
     plt.imshow(
         pred_slice,
         cmap="tab10",
@@ -901,7 +901,7 @@ def gen_ploting(name, mri_slice, gt_slice, pred_slice):
     plt.title("Prediction")
     plt.axis("off")
 
-    plt.subplot(1,4,4)
+    plt.subplot(1,5,4)
     plt.imshow(
         mri_slice,
         cmap="gray"
@@ -918,7 +918,7 @@ def gen_ploting(name, mri_slice, gt_slice, pred_slice):
     plt.axis("off")
 
     diference = gt_slice - pred_slice
-    plt.subplot(1,4,5)
+    plt.subplot(1,5,5)
     plt.imshow(
         diference,
         cmap="bwr",

@@ -240,7 +240,6 @@ def seperate(images, masks):
    
     return (train_images, train_masks), (val_images, val_masks), (test_images, test_masks)
 
-from collections import Counter
 class UNet3d_Data(torch.utils.data.Dataset):
     def __init__(self, images, masks):
         self.samples = []
@@ -249,7 +248,6 @@ class UNet3d_Data(torch.utils.data.Dataset):
             ground_truth = masks[key]
             print(f"Volume shape: {volume.shape}, Ground truth shape: {ground_truth.shape}")
             self.samples.append((volume, ground_truth))
-            self.sizes = Counter()
 
     def __len__(self):
         return len(self.samples)
