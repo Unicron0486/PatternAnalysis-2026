@@ -106,15 +106,47 @@ class UNet2d_Data(torch.utils.data.Dataset):
         self.samples = []
         widths = set()
 
+        mask_ids = []
+        img_ids = []
+
+        for key in masks:
+            ground_truth = masks[key]
+            mask_ids.append(key)
+
         for key in images:
             volume = images[key]
-            ground_truth = masks[key]
-            assert volume.shape == ground_truth.shape[:3], f"Shape mismatch for key {key}: volume shape {volume.shape}, ground truth shape {ground_truth.shape}"
+            img_ids.append(key)
             widths.add(volume.shape[-1])
 
-            
-            for i in range(volume.shape[0]):
-                self.samples.append((volume[i], ground_truth[i]))
+        
+
+        for i in img_ids:
+            match = False
+            for j in mask_ids:
+                if i == j:
+                    match = True
+                    break
+            if not match:
+                print(f"Warning: No matching mask found for image with key {i}. This image will be skipped.")
+                volume.remove(i)
+
+
+        for j in mask_ids:
+            match = False
+            for i in img_ids:
+                if j == i:
+                    match = True
+                    break
+            if not match:
+                print(f"Warning: No matching image found for mask with key {j}. This mask will be skipped.")
+                masks.remove(j)
+
+        print("all removed")
+
+        for i in range(volume.shape[0]):
+            self.samples.append((volume[i], ground_truth[i]))
+
+
 
     def __len__(self):
         return len(self.samples)
@@ -139,6 +171,23 @@ class UNet2d_Data(torch.utils.data.Dataset):
         ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0), size=(targetH, targetW), mode='nearest').squeeze(0)
 
         return image, ground_truth
+    
+    def get_proportion(self):
+        """
+        Calculate the proportion of each class in the dataset.
+        Returns a dictionary with class labels as keys and their corresponding proportions as values.
+        """
+        class_counts = defaultdict(int)
+        total_pixels = 0
+
+        for _, ground_truth in self.samples:
+            unique, counts = np.unique(ground_truth, return_counts=True)
+            for cls, count in zip(unique, counts):
+                class_counts[cls] += count
+                total_pixels += count
+
+        class_proportions = {cls: count / total_pixels for cls, count in class_counts.items()}
+        return class_proportions
 
 
 # 3D data loading

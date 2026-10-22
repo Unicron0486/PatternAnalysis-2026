@@ -7,9 +7,9 @@ import dataset
 import utils
 from matplotlib.patches import Patch
 
-BATCH_SIZE = 2
+BATCH_SIZE = 4
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 5
+NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def dice_per_class(preds, ground_truth, num_classes=6):
@@ -187,7 +187,8 @@ def training_2d():
 
     # Set model, criterion, and optimizer
     model = modules.TwoD_UNet().to(DEVICE)
-    criterion = lambda logits, targets: nn.BCEWithLogitsLoss()(logits, targets) + DiceLoss()(logits, targets)
+    thresholds = torch.tensor(train_dataset.get_thresholds(), device=DEVICE)
+    criterion = lambda logits, targets: nn.BCEWithLogitsLoss(weight=thresholds)(logits, targets) + DiceLoss()(logits, targets)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training Loop
@@ -236,6 +237,7 @@ def training_2d():
     log_file.close()
     print("training done")
     make_plots_2d(training_losses, validation_losses, dice_scores)
+    return thresholds
 
 
 def validate_2d(loader, model, criterion):
@@ -258,7 +260,7 @@ def validate_2d(loader, model, criterion):
     epoch_loss = running_loss / len(loader)
     return epoch_loss
 
-def test_2d():
+def test_2d(thresholds):
     """
     Test the 2D U-Net model on the testing dataset and log the results.
     """
@@ -313,7 +315,6 @@ def test_2d():
             
             class_dice = dice_per_class(output, ground_truth, num_classes=6)
             class_iou = iou_per_class(output, ground_truth, num_classes=6)
-            thresholds = torch.tensor([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], device=DEVICE).view(1, 6, 1, 1)
             prediction = torch.sigmoid(output)
 
             with open("training_log.txt", "a") as log_file:
