@@ -7,7 +7,7 @@ import dataset
 import utils
 from matplotlib.patches import Patch
 
-BATCH_SIZE = 4
+BATCH_SIZE = 2
 LEARNING_RATE = 0.001
 NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
