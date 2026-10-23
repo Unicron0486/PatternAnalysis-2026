@@ -186,7 +186,7 @@ class UNet2d_Data(torch.utils.data.Dataset):
                 class_counts[cls] += count
                 total_pixels += count
 
-        class_proportions = {cls: count / total_pixels for cls, count in class_counts.items()}
+        class_proportions = {cls: total_pixels / count for cls, count in class_counts.items()}
         return class_proportions
 
 
@@ -275,7 +275,7 @@ def seperate(images, masks):
     val_keys = keys[train_end:val_end]
     test_keys = keys[val_end:]
 
-    for key in images:
+    for key in images.keys():
         patient_id, week = key
         if patient_id in train_keys:
             train_images[key] = images[key]

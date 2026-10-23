@@ -9,7 +9,7 @@ from matplotlib.patches import Patch
 
 BATCH_SIZE = 2
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 50
+NUM_EPOCHS = 100
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def dice_per_class(preds, ground_truth, num_classes=6):
@@ -181,14 +181,17 @@ def training_2d():
     train_dataset = dataset.get_training_2d()
     val_dataset = dataset.get_validation_2d()
     print("data loaded")
-    
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    # transforms = torch.nn.Sequential(
+    #     dataset.RandomFlip(),
+    #     dataset.RandomRotation(10),
+    # )
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)#, transform=transforms)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Set model, criterion, and optimizer
     model = modules.TwoD_UNet().to(DEVICE)
-    thresholds = torch.tensor(train_dataset.get_thresholds(), device=DEVICE)
-    criterion = lambda logits, targets: nn.BCEWithLogitsLoss(weight=thresholds)(logits, targets) + DiceLoss()(logits, targets)
+    thresholds = torch.tensor(train_dataset.get_proportion(), device=DEVICE)
+    criterion = lambda logits, targets: nn.BCEWithLogitsLoss(pos_weight=thresholds)(logits, targets) + DiceLoss()(logits, targets)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training Loop
