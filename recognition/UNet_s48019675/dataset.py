@@ -183,22 +183,26 @@ class UNet2d_Data(torch.utils.data.Dataset):
         Calculate the proportion of each class in the dataset.
         Returns a dictionary with class labels as keys and their corresponding proportions as values.
         """
-        num_classes = self.samples[0][1].shape[-1]
 
-        class_counts = np.zeros(num_classes)
+        class_counts = None
 
-        for _, gt in self.samples:
-            class_counts += gt.sum(axis=(0, 1))
+        for _, ground_truth in self.samples:
+
+            # ground_truth shape: [H, W, C]
+            gt = torch.as_tensor(ground_truth, dtype=torch.float32)
+
+            if class_counts is None:
+                num_classes = gt.shape[-1]
+                class_counts = torch.zeros(num_classes)
+
+            # count pixels belonging to each class
+            class_counts += gt.sum(dim=(0, 1))
 
         total_pixels = class_counts.sum()
 
-        return torch.tensor(
-            total_pixels / (class_counts + 1e-8),
-            dtype=torch.float32
-        )
+        weights = total_pixels / (class_counts + 1e-8)
 
-
-
+        return torch.tensor(weights, dtype=torch.float32)
 
 
 

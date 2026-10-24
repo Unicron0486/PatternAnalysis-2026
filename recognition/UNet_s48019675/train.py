@@ -191,12 +191,12 @@ def training_2d():
     # Set model, criterion, and optimizer
     model = modules.TwoD_UNet().to(DEVICE)
     
-    thresholds = train_dataset.get_proportion()
+    thresholds = train_dataset.get_proportion().to(DEVICE)
     print(thresholds.shape)
     print(thresholds)
     criterion = lambda logits, targets: nn.BCEWithLogitsLoss(pos_weight=thresholds)(logits, targets) + DiceLoss()(logits, targets)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
+    print("model classes:", model.out_channels)
     # Training Loop
     best_dice = 0.0
     training_losses = []
@@ -502,6 +502,31 @@ def gen_plotting_2d(image, combined, combined_truth, count):
         )
 
     plt.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
