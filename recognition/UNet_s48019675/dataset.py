@@ -171,12 +171,7 @@ class UNet2d_Data(torch.utils.data.Dataset):
 
         
         ground_truth = torch.tensor(ground_truth, dtype=torch.float32)
-        num_classes = ground_truth.shape[-1]
-        class_counts = np.zeros(num_classes)
-        for _,gt in self.samples:
-            class_counts += gt.sum(axis=(0, 1))
-        class_proportions = class_counts / class_counts.sum() + 1e-8
-        self.thresholds = torch.tensor(class_proportions, dtype=torch.float32)
+
 
         ground_truth = ground_truth.permute(2, 0, 1)
         ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0), size=(targetH, targetW), mode='nearest').squeeze(0)
@@ -188,18 +183,19 @@ class UNet2d_Data(torch.utils.data.Dataset):
         Calculate the proportion of each class in the dataset.
         Returns a dictionary with class labels as keys and their corresponding proportions as values.
         """
-        # class_counts = defaultdict(int)
-        # total_pixels = 0
+        num_classes = self.samples[0][1].shape[-1]
 
-        # for _, ground_truth in self.samples:
-        #     unique, counts = np.unique(ground_truth, return_counts=True)
-        #     for cls, count in zip(unique, counts):
-        #         class_counts[cls] += count
-        #         total_pixels += count
+        class_counts = np.zeros(num_classes)
 
-        # class_proportions = [total_pixels / count for cls, count in class_counts.items()]
-        # return torch.tensor(class_proportions)
-        return self.thresholds
+        for _, gt in self.samples:
+            class_counts += gt.sum(axis=(0, 1))
+
+        total_pixels = class_counts.sum()
+
+        return torch.tensor(
+            total_pixels / (class_counts + 1e-8),
+            dtype=torch.float32
+        )
 
 
 
