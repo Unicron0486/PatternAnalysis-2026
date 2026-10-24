@@ -190,7 +190,10 @@ def training_2d():
 
     # Set model, criterion, and optimizer
     model = modules.TwoD_UNet().to(DEVICE)
+    
     thresholds = train_dataset.get_proportion()
+    print(thresholds.shape)
+    print(thresholds)
     criterion = lambda logits, targets: nn.BCEWithLogitsLoss(pos_weight=thresholds)(logits, targets) + DiceLoss()(logits, targets)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 

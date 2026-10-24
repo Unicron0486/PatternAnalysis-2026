@@ -109,14 +109,17 @@ class UNet2d_Data(torch.utils.data.Dataset):
         mask_ids = []
         img_ids = []
 
-        for key in masks:
-            ground_truth = masks[key]
-            mask_ids.append(key)
 
         for key in images:
+            if key not in masks:
+                continue
+
             volume = images[key]
-            img_ids.append(key)
-            widths.add(volume.shape[-1])
+            ground_truth = masks[key]
+
+            for i in range(volume.shape[0]):
+                self.samples.append((volume[i], ground_truth[i]))
+
 
         
 
@@ -143,8 +146,7 @@ class UNet2d_Data(torch.utils.data.Dataset):
 
         print("all removed")
 
-        for i in range(volume.shape[0]):
-            self.samples.append((volume[i], ground_truth[i]))
+
 
 
 
