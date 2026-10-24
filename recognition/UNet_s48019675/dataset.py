@@ -116,9 +116,12 @@ class UNet2d_Data(torch.utils.data.Dataset):
 
             volume = images[key]
             ground_truth = masks[key]
-
-            for i in range(volume.shape[0]):
-                self.samples.append((volume[i], ground_truth[i]))
+            try:
+                for i in range(volume.shape[0]):
+                    self.samples.append((volume[i], ground_truth[i]))
+            except Exception as e:
+                print(f"Error processing key {key}: {e}")
+                continue
 
 
         

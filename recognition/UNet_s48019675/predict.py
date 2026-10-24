@@ -14,7 +14,7 @@ DEVICE = torch.device(
 
 def run_2d():
     torch.cuda.reset_peak_memory_stats()
-    tr.training_2d()
+    thresholds = tr.training_2d()
     if torch.cuda.is_available():
             max_mem = (
                 torch.cuda.max_memory_allocated()
@@ -26,7 +26,7 @@ def run_2d():
             f"Peak GPU Memory: {max_mem:.2f} GB\n"
         )
     print("testing")
-    tr.test_2d()
+    tr.test_2d(thresholds)
 
 def run_3d():
     print("3d training")

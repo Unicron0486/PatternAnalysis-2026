@@ -192,8 +192,7 @@ def training_2d():
     model = modules.TwoD_UNet().to(DEVICE)
     
     thresholds = train_dataset.get_proportion().to(DEVICE)
-    print(thresholds.shape)
-    print(thresholds)
+    thresholds = thresholds.view(1, -1, 1, 1)  # Reshape for broadcasting
     criterion = lambda logits, targets: nn.BCEWithLogitsLoss(pos_weight=thresholds)(logits, targets) + DiceLoss()(logits, targets)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     print("model classes:", model.out_channels)
