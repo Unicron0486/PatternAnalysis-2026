@@ -120,26 +120,26 @@ class UNet2d_Data(torch.utils.data.Dataset):
 
         
 
-        for i in img_ids:
-            match = False
-            for j in mask_ids:
-                if i == j:
-                    match = True
-                    break
-            if not match:
-                print(f"Warning: No matching mask found for image with key {i}. This image will be skipped.")
-                volume.remove(i)
+        # for i in img_ids:
+        #     match = False
+        #     for j in mask_ids:
+        #         if i == j:
+        #             match = True
+        #             break
+        #     if not match:
+        #         print(f"Warning: No matching mask found for image with key {i}. This image will be skipped.")
+        #         # volume.pop(i)
 
 
-        for j in mask_ids:
-            match = False
-            for i in img_ids:
-                if j == i:
-                    match = True
-                    break
-            if not match:
-                print(f"Warning: No matching image found for mask with key {j}. This mask will be skipped.")
-                masks.remove(j)
+        # for j in mask_ids:
+        #     match = False
+        #     for i in img_ids:
+        #         if j == i:
+        #             match = True
+        #             break
+        #     if not match:
+        #         print(f"Warning: No matching image found for mask with key {j}. This mask will be skipped.")
+        #         # masks.pop(j)
 
         print("all removed")
 
@@ -186,8 +186,29 @@ class UNet2d_Data(torch.utils.data.Dataset):
                 class_counts[cls] += count
                 total_pixels += count
 
-        class_proportions = {cls: total_pixels / count for cls, count in class_counts.items()}
-        return class_proportions
+        class_proportions = [total_pixels / count for cls, count in class_counts.items()]
+        return torch.tensor(class_proportions)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # 3D data loading
