@@ -41,9 +41,9 @@ def get_2d_data(path, truth = False):
     count = 0
     
     for file in os.listdir(path):
-        if count > 10:
-            break
-        count +=1
+        # if count > 10:
+        #     break
+        # count +=1
         match = pattern.match(file)
         if match:
             patient_id = int(match.group(1))
@@ -177,9 +177,6 @@ class UNet2d_Data(torch.utils.data.Dataset):
         ground_truth = ground_truth.permute(2, 0, 1)
         ground_truth = torch.argmax(ground_truth, dim=0).long()
         ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).unsqueeze(0).float(), size=(targetH, targetW), mode='nearest').squeeze(0).squeeze(0).long()
-        print(ground_truth.shape)
-        print(ground_truth.dtype)
-        print(torch.unique(ground_truth))
         return image, ground_truth
     
     def get_proportion(self):
@@ -262,9 +259,9 @@ def load_3d_data(path, truth = False):
     volumes = defaultdict(list)
     count = 0
     for file in os.listdir(path):
-        count += 1
-        if count > 10:
-            break
+        # count += 1
+        # if count > 10:
+        #     break
         match = pattern.match(file)
         if match:
             patient_id = match.group(1) + match.group(2)

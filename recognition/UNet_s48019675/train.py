@@ -9,7 +9,7 @@ from matplotlib.patches import Patch
 
 BATCH_SIZE = 2
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 100
+NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def dice_per_class(preds, ground_truth, num_classes=6):
@@ -201,10 +201,11 @@ def training_2d():
     train_dataset = dataset.get_training_2d()
     val_dataset = dataset.get_validation_2d()
     print("data loaded")
-    # transforms = torch.nn.Sequential(
-    #     dataset.RandomFlip(),
-    #     dataset.RandomRotation(10),
-    # )
+    transforms = torch.nn.Sequential(
+        dataset.RandomFlip(),
+        dataset.RandomRotation(10),
+        dataset.RandomIntensityShift(0.1),
+    )
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)#, transform=transforms)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
