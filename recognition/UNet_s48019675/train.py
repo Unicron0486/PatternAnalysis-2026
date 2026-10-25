@@ -124,15 +124,36 @@ def train_epoch_2d(loader, model, optimiser, criterion):
     epoch_loss = running_loss / len(loader)
     return epoch_loss
 
-def dice_2d(preds , ground_truth):
-    """
-    Calculate the Dice coefficient for 2D segmentation.
-    """
-    preds = torch.argmax(preds, dim=1)
-    intersection = (preds * ground_truth).sum()
+def dice_2d(preds, ground_truth, num_classes=6):
 
-    dice_score = (2. * intersection + 1e-8) / (preds.sum() + ground_truth.sum() + 1e-8)
-    return dice_score.item()
+    preds = torch.argmax(preds, dim=1)
+
+    dice_scores = []
+
+    for c in range(num_classes):
+
+        pred_c = (preds == c).float()
+        gt_c = (ground_truth == c).float()
+
+        if gt_c.sum() == 0:
+            continue
+
+        intersection = (pred_c * gt_c).sum()
+
+        dice = (
+            2.0 * intersection + 1e-8
+        ) / (
+            pred_c.sum()
+            + gt_c.sum()
+            + 1e-8
+        )
+
+        dice_scores.append(dice)
+
+    if len(dice_scores) == 0:
+        return 0.0
+
+    return torch.mean(torch.stack(dice_scores)).item()
 
 def evaluate_2d(loader, model):
     """
@@ -325,11 +346,11 @@ def test_2d(thresholds):
 
             with open("training_log.txt", "a") as log_file:
                 for c in range(6):
-                        log_file.write(
-                            f"Class {c} "
-                            f"Max: {prediction[:, c].max().item():.4f} "
-                            f"Mean: {prediction[:, c].mean().item():.4f}\n"
-                        )
+                    fraction = (prediction == c).float().mean().item()
+
+                    log_file.write(
+                        f"Class {c} Fraction: {fraction:.4f}\n"
+                    )
 
                 for cls, dice_score in class_dice.items():
                     running_class_dice[cls] += dice_score
@@ -348,10 +369,7 @@ def test_2d(thresholds):
                     worst_dice = dice
                     worst_case = (image.cpu(), prediction.cpu(), ground_truth.cpu())
             
-            prediction = (prediction > thresholds).float()
-
-            combined = torch.argmax(prediction, dim=1)
-            combined_truth = torch.argmax(ground_truth, dim=1)    
+              
 
             total_dice += dice
 
@@ -361,16 +379,16 @@ def test_2d(thresholds):
         best_image, best_prediction, best_ground_truth = best_case
         gen_plotting_2d(
             best_image,
-            torch.argmax(best_prediction, dim=1),
-            torch.argmax(best_ground_truth, dim=1),
+            best_prediction,
+            best_ground_truth,
             "best"
         )
     if worst_case is not None:
         worst_image, worst_prediction, worst_ground_truth = worst_case
         gen_plotting_2d(
             worst_image,
-            torch.argmax(worst_prediction, dim=1),
-            torch.argmax(worst_ground_truth, dim=1),
+            worst_prediction,
+            worst_ground_truth,
             "worst"
         )
 
