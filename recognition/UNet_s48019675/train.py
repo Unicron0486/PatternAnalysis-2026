@@ -83,7 +83,7 @@ class DiceLoss(nn.Module):
         self.smooth = smooth
 
     def forward(self, logits, targets):
-        probs = torch.sigmoid(logits)
+        probs = torch.argmax(logits, dim=1)
 
         probs = probs.view(probs.size(0), probs.size(1), -1)
         targets = targets.view(targets.size(0), targets.size(1), -1)
@@ -128,8 +128,7 @@ def dice_2d(preds , ground_truth):
     """
     Calculate the Dice coefficient for 2D segmentation.
     """
-    preds = torch.sigmoid(preds)
-    preds = (preds > 0.5).float()
+    preds = torch.argmax(preds, dim=1)
     intersection = (preds * ground_truth).sum()
 
     dice_score = (2. * intersection + 1e-8) / (preds.sum() + ground_truth.sum() + 1e-8)
@@ -190,12 +189,15 @@ def training_2d():
 
     # Set model, criterion, and optimizer
     model = modules.TwoD_UNet().to(DEVICE)
-    
+    img, gt = train_dataset[0]
+    print(f"Image shape: {img.shape}, Ground truth shape: {gt.shape}")
+    print(torch.unique(gt))
+    print("D")
     thresholds = train_dataset.get_proportion().to(DEVICE)
     thresholds = thresholds.view(1, -1, 1, 1)  # Reshape for broadcasting
-    criterion = lambda logits, targets: nn.BCEWithLogitsLoss(pos_weight=thresholds)(logits, targets) + DiceLoss()(logits, targets)
+    criterion = nn.CrossEntropyLoss(weight=thresholds)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    print("model classes:", model.out_channels)
+    
     # Training Loop
     best_dice = 0.0
     training_losses = []
@@ -320,7 +322,7 @@ def test_2d(thresholds):
             
             class_dice = dice_per_class(output, ground_truth, num_classes=6)
             class_iou = iou_per_class(output, ground_truth, num_classes=6)
-            prediction = torch.sigmoid(output)
+            prediction = torch.argmax(output, dim=1)
 
             with open("training_log.txt", "a") as log_file:
                 for c in range(6):

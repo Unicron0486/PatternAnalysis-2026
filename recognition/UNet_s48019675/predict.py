@@ -27,6 +27,7 @@ def run_2d():
         )
     print("testing")
     tr.test_2d(thresholds)
+    print("done")
 
 def run_3d():
     print("3d training")

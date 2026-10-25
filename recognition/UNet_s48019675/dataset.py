@@ -174,9 +174,8 @@ class UNet2d_Data(torch.utils.data.Dataset):
 
         
         ground_truth = torch.tensor(ground_truth, dtype=torch.float32)
-
-
         ground_truth = ground_truth.permute(2, 0, 1)
+        ground_truth = torch.argmax(ground_truth, dim=0).long()
         ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0), size=(targetH, targetW), mode='nearest').squeeze(0)
 
         return image, ground_truth
@@ -187,25 +186,23 @@ class UNet2d_Data(torch.utils.data.Dataset):
         Returns a dictionary with class labels as keys and their corresponding proportions as values.
         """
 
-        class_counts = None
+        num_classes = self.samples[0][1].shape[-1]
 
-        for _, ground_truth in self.samples:
+        class_counts = torch.zeros(num_classes)
 
-            # ground_truth shape: [H, W, C]
-            gt = torch.as_tensor(ground_truth, dtype=torch.float32)
+        for _, gt in self.samples:
 
-            if class_counts is None:
-                num_classes = gt.shape[-1]
-                class_counts = torch.zeros(num_classes)
+            gt = torch.tensor(gt, dtype=torch.float32)
 
-            # count pixels belonging to each class
             class_counts += gt.sum(dim=(0, 1))
 
-        total_pixels = class_counts.sum()
+        total = class_counts.sum()
 
-        weights = total_pixels / (class_counts + 1e-8)
+        weights = total / (class_counts + 1e-8)
 
-        return torch.tensor(weights, dtype=torch.float32)
+        weights = weights / weights.mean()
+
+        return weights.float()
 
 
 
