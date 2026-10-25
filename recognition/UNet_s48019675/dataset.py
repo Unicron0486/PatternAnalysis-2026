@@ -20,7 +20,7 @@ Segments3d = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 testNii = "C:/Users/hawki/OneDrive/Desktop/Uni/2026/Comp_Patterns/Report/seg_042_week_0_slice_9.nii"
 
 #For remote desktop
-# root2d = "C:/Users/s4801967/3710/MRI/MRI"
+# root2d = "/home/s4801967/PatternAnalysis-2026/MRI"
 
 # for local
 # root2d = "C:/Users/hawki/Uni/2026/MRI"
@@ -123,35 +123,7 @@ class UNet2d_Data(torch.utils.data.Dataset):
                 print(f"Error processing key {key}: {e}")
                 continue
 
-
-        
-
-        # for i in img_ids:
-        #     match = False
-        #     for j in mask_ids:
-        #         if i == j:
-        #             match = True
-        #             break
-        #     if not match:
-        #         print(f"Warning: No matching mask found for image with key {i}. This image will be skipped.")
-        #         # volume.pop(i)
-
-
-        # for j in mask_ids:
-        #     match = False
-        #     for i in img_ids:
-        #         if j == i:
-        #             match = True
-        #             break
-        #     if not match:
-        #         print(f"Warning: No matching image found for mask with key {j}. This mask will be skipped.")
-        #         # masks.pop(j)
-
         print("all removed")
-
-
-
-
 
     def __len__(self):
         return len(self.samples)
@@ -163,18 +135,13 @@ class UNet2d_Data(torch.utils.data.Dataset):
         """
         image, ground_truth = self.samples[idx]
 
-        # image = image.astype(np.float32)
-        # ground_truth = ground_truth.astype(np.uint8)
-
         targetH = 256
         targetW = 144
 
         image = torch.tensor(image, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         image = nn.functional.interpolate(image, size=(targetH, targetW), mode='bilinear', align_corners=False).squeeze(0)
-
         
-        ground_truth = torch.tensor(ground_truth, dtype=torch.float32)
-        ground_truth = ground_truth.permute(2, 0, 1)
+        ground_truth = torch.tensor(ground_truth, dtype=torch.float32).permute(2, 0, 1)
         ground_truth = torch.argmax(ground_truth, dim=0).long()
         ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).unsqueeze(0).float(), size=(targetH, targetW), mode='nearest').squeeze(0).squeeze(0).long()
         return image, ground_truth
@@ -184,21 +151,15 @@ class UNet2d_Data(torch.utils.data.Dataset):
         Calculate the proportion of each class in the dataset.
         Returns a dictionary with class labels as keys and their corresponding proportions as values.
         """
-
         num_classes = self.samples[0][1].shape[-1]
-
         class_counts = torch.zeros(num_classes)
 
         for _, gt in self.samples:
-
             gt = torch.tensor(gt, dtype=torch.float32)
-
             class_counts += gt.sum(dim=(0, 1))
 
         total = class_counts.sum()
-
         weights = total / (class_counts + 1e-8)
-
         weights = weights / weights.mean()
 
         return weights.float()
@@ -238,7 +199,7 @@ def get_3d_data(path1 = root3d_data, path2 = root3d_truth):
 
     # (train_images, train_masks), (val_images, val_masks), (test_images, test_masks) = seperate(images, masks)
     train, validate, test = seperate(images, masks)
-
+    print(f"Training set size: {len(train[0])}")
     dtrain = UNet3d_Data(train[0], train[1])
     dvalidate = UNet3d_Data(validate[0], validate[1])
     dtest = UNet3d_Data(test[0], test[1])
@@ -259,9 +220,9 @@ def load_3d_data(path, truth = False):
     volumes = defaultdict(list)
     count = 0
     for file in os.listdir(path):
-        # count += 1
-        # if count > 10:
-        #     break
+        count += 1
+        if count > 10:
+            break
         match = pattern.match(file)
         if match:
             patient_id = match.group(1) + match.group(2)
@@ -330,15 +291,19 @@ class UNet3d_Data(torch.utils.data.Dataset):
             print(f"Volume shape: {volume.shape}, Ground truth shape: {ground_truth.shape}")
             self.samples.append((volume, ground_truth))
 
+                    
+        image, gt = self.samples[0]
+
+        print(image.shape)
+        print(gt.shape)
+        print(np.unique(gt))
+
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
         image, ground_truth = self.samples[idx]
-        
-
-        
-
+ 
         targetH = 256
         targetW = 256
         targetD = 128
@@ -346,14 +311,30 @@ class UNet3d_Data(torch.utils.data.Dataset):
         image = torch.tensor(image, dtype=torch.float32)
         ground_truth = torch.tensor(ground_truth, dtype=torch.long)
 
-        
-        
-    
-        # self.sizes[image.shape] += 1
-
         image = nn.functional.interpolate(image.unsqueeze(0), size=(targetD, targetW, targetH), mode='trilinear', align_corners=False).squeeze(0)
 
         ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).float(), size=(targetD, targetW, targetH), mode='nearest').squeeze(0).squeeze(0).long()
         
         return image, ground_truth
 
+    def get_proportion(self):
+        """
+        Calculate the proportion of each class in the dataset.
+        Returns a dictionary with class labels as keys and their corresponding proportions as values.
+        """
+        class_counts = None
+        for _, gt in self.samples:
+            gt = torch.as_tensor(gt)
+
+            if class_counts is None:
+                n_classes = int(gt.max()) + 1
+                class_counts = torch.zeros(n_classes)
+
+            for c in range(len(class_counts)):
+                class_counts[c] += (gt == c).sum()
+
+        total = class_counts.sum()
+
+        weights = total / (class_counts + 1e-8)
+        weights = weights / weights.mean()
+        return weights.float()

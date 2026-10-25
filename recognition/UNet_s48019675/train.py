@@ -7,9 +7,9 @@ import dataset
 import utils
 from matplotlib.patches import Patch
 
-BATCH_SIZE = 2
+BATCH_SIZE = 35
 LEARNING_RATE = 0.001
-NUM_EPOCHS = 50
+NUM_EPOCHS = 16
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def dice_per_class(preds, ground_truth, num_classes=6):
@@ -74,32 +74,6 @@ def iou_per_class(preds, ground_truth, num_classes=6):
 
     return scores
 
-class DiceLoss(nn.Module):
-    """
-    Dice Loss for multi-class segmentation.
-    """
-    def __init__(self, smooth=1e-6):
-        super().__init__()
-        self.smooth = smooth
-
-    def forward(self, logits, targets):
-        probs = torch.argmax(logits, dim=1)
-
-        probs = probs.view(probs.size(0), probs.size(1), -1)
-        targets = targets.view(targets.size(0), targets.size(1), -1)
-
-        intersection = (probs * targets).sum(dim=2)
-
-        dice = (
-            2.0 * intersection + self.smooth
-        ) / (
-            probs.sum(dim=2)
-            + targets.sum(dim=2)
-            + self.smooth
-        )
-
-        return 1 - dice.mean()
-
 #Training validation testing and saving
 def train_epoch_2d(loader, model, optimiser, criterion):
     """
@@ -125,13 +99,13 @@ def train_epoch_2d(loader, model, optimiser, criterion):
     return epoch_loss
 
 def dice_2d(preds, ground_truth, num_classes=6):
-
+    """
+    Calculate the Dice coefficient for 2D segmentation.
+    """
     preds = torch.argmax(preds, dim=1)
-
     dice_scores = []
 
     for c in range(num_classes):
-
         pred_c = (preds == c).float()
         gt_c = (ground_truth == c).float()
 
@@ -140,14 +114,7 @@ def dice_2d(preds, ground_truth, num_classes=6):
 
         intersection = (pred_c * gt_c).sum()
 
-        dice = (
-            2.0 * intersection + 1e-8
-        ) / (
-            pred_c.sum()
-            + gt_c.sum()
-            + 1e-8
-        )
-
+        dice = (2.0 * intersection + 1e-8) / (pred_c.sum() + gt_c.sum() + 1e-8)
         dice_scores.append(dice)
 
     if len(dice_scores) == 0:
@@ -192,7 +159,6 @@ def make_plots_2d(training_losses, validation_losses, dice_scores):
     plt.plot(dice_scores, label="Dice Score")
     plt.savefig("dice_plot.png")
 
-
 def training_2d():
     """
     Train the 2D U-Net model on the training dataset and validate on the validation dataset.
@@ -201,12 +167,8 @@ def training_2d():
     train_dataset = dataset.get_training_2d()
     val_dataset = dataset.get_validation_2d()
     print("data loaded")
-    # transforms = torch.nn.Sequential(
-    #     dataset.RandomFlip(),
-    #     dataset.RandomRotation(10),
-    #     dataset.RandomIntensityShift(0.1),
-    # )
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)#, transform=transforms)
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Set model, criterion, and optimizer
@@ -266,7 +228,6 @@ def training_2d():
     print("training done")
     make_plots_2d(training_losses, validation_losses, dice_scores)
     return thresholds
-
 
 def validate_2d(loader, model, criterion):
     """
@@ -544,14 +505,14 @@ def gen_plotting_2d(image, combined, combined_truth, count):
 
 
 
-
+BATCH_SIZE = 1
 
 
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 
-# root3d_data = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_MRs"
-# root3d_truth = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_labels_only"
+root3d_data = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_MRs"
+root3d_truth = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_labels_only"
 # 3D model
 def train_epoch_3d(loader, model, optimiser, criterion):
     """
@@ -689,7 +650,9 @@ class model_3d():
         # test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
     
         model = modules.ThreeD_UNet().to(DEVICE)
-        criterion = nn.CrossEntropyLoss()
+        thresholds = self.train.get_proportion().to(DEVICE)
+        print(f"Thresholds: {thresholds}")
+        criterion = nn.CrossEntropyLoss(weight=thresholds)
         optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
         
         
