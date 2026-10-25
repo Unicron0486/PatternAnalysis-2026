@@ -176,8 +176,10 @@ class UNet2d_Data(torch.utils.data.Dataset):
         ground_truth = torch.tensor(ground_truth, dtype=torch.float32)
         ground_truth = ground_truth.permute(2, 0, 1)
         ground_truth = torch.argmax(ground_truth, dim=0).long()
-        ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0), size=(targetH, targetW), mode='nearest').squeeze(0)
-
+        ground_truth = nn.functional.interpolate(ground_truth.unsqueeze(0).unsqueeze(0).float(), size=(targetH, targetW), mode='nearest').squeeze(0).squeeze(0).long()
+        print(ground_truth.shape)
+        print(ground_truth.dtype)
+        print(torch.unique(ground_truth))
         return image, ground_truth
     
     def get_proportion(self):

@@ -194,7 +194,6 @@ def training_2d():
     print(torch.unique(gt))
     print("D")
     thresholds = train_dataset.get_proportion().to(DEVICE)
-    thresholds = thresholds.view(1, -1, 1, 1)  # Reshape for broadcasting
     criterion = nn.CrossEntropyLoss(weight=thresholds)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
