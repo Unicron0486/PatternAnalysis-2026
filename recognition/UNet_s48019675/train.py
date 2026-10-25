@@ -287,8 +287,8 @@ def test_2d(thresholds):
 
     best_dice = -1
     worst_dice = 2
-    best_case = None
-    worst_case = None
+    best_cases = []
+    worst_cases = []
     inference_times = []
     with torch.no_grad():
 
@@ -324,12 +324,12 @@ def test_2d(thresholds):
                                 ground_truth
                             )
                 
-                if dice > best_dice:
+                if dice >= best_dice:
                     best_dice = dice
-                    best_case = (image.cpu(), prediction.cpu(), ground_truth.cpu())
-                if dice < worst_dice:
+                    best_cases.append((image.cpu(), prediction.cpu(), ground_truth.cpu()))
+                if dice <= worst_dice:
                     worst_dice = dice
-                    worst_case = (image.cpu(), prediction.cpu(), ground_truth.cpu())
+                    worst_cases.append((image.cpu(), prediction.cpu(), ground_truth.cpu()))
             
               
 
@@ -338,21 +338,32 @@ def test_2d(thresholds):
             count += 1
 
     if best_case is not None:
-        best_image, best_prediction, best_ground_truth = best_case
-        gen_plotting_2d(
-            best_image,
-            best_prediction,
-            best_ground_truth,
-            "best"
-        )
-    if worst_case is not None:
-        worst_image, worst_prediction, worst_ground_truth = worst_case
-        gen_plotting_2d(
-            worst_image,
-            worst_prediction,
-            worst_ground_truth,
-            "worst"
-        )
+        count = 0
+        for best_case in best_cases:
+            if count >= 5:
+                break
+            best_image, best_prediction, best_ground_truth = best_case
+            gen_plotting_2d(
+                best_image,
+                best_prediction,
+                best_ground_truth,
+                f"best_{count}"
+            )
+            count += 1
+
+        
+    if worst_cases is not None:
+        count = 0
+        for worst_case in worst_cases:
+            if count >= 5:
+                break
+            worst_image, worst_prediction, worst_ground_truth = worst_case
+            gen_plotting_2d(
+                worst_image,
+                worst_prediction,
+                worst_ground_truth,
+                "worst"
+            )
 
     # Log results
     with open("training_log.txt", "a") as log_file:
@@ -460,11 +471,10 @@ def gen_plotting_2d(image, combined, combined_truth, count):
 
     legend_items = [
         Patch(color=plt.cm.tab10(0), label="Background"),
-        Patch(color=plt.cm.tab10(1), label="Body"),
-        Patch(color=plt.cm.tab10(2), label="Bone"),
-        Patch(color=plt.cm.tab10(3), label="Bladder"),
-        Patch(color=plt.cm.tab10(4), label="Rectum"),
-        Patch(color=plt.cm.tab10(5), label="Prostate")
+        Patch(color=plt.cm.tab10(2), label="Body"),
+        Patch(color=plt.cm.tab10(5), label="Bone"),
+        Patch(color="grey", label="Bladder"),
+        Patch(color="cyan", label="Prostate")
     ]
 
     plt.legend(
@@ -506,6 +516,7 @@ def gen_plotting_2d(image, combined, combined_truth, count):
 
 
 BATCH_SIZE = 1
+NUM_EPOCHS = 1
 
 
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
@@ -740,8 +751,8 @@ class model_3d():
         best_dice = -1
         worst_dice = 2
 
-        best_case = None
-        worst_case = None
+        best_cases = []
+        worst_cases = []
 
         with torch.no_grad():
             for image, ground_truth in test_loader:
@@ -771,16 +782,7 @@ class model_3d():
                     class_count[cls] += 1
                 for cls, score in class_iou.items():
                     running_class_iou[cls] += score
-    
-                #
-                # CrossEntropy output:
-                # [B,6,D,H,W]
-                #
-    
-                #
-                # Ground truth:
-                # [B,D,H,W]
-                #
+ 
                 dice = dice_3d(
                     output,
                     ground_truth
@@ -795,42 +797,53 @@ class model_3d():
                 pred_slice = pred[0, mid].cpu().numpy()
 
                 if dice > best_dice:
-                    best_dice = dice
-
-                    best_case = (
-                        mri_slice.copy(),
-                        gt_slice.copy(),
-                        pred_slice.copy()
+                    best_cases.append(
+                        (
+                            mri_slice.copy(),
+                            gt_slice.copy(),
+                            pred_slice.copy()
+                        )
                     )
 
                 if dice < worst_dice:
-                    worst_dice = dice
-
-                    worst_case = (
-                        mri_slice.copy(),
-                        gt_slice.copy(),
-                        pred_slice.copy()
+                    worst_cases.append(
+                        (
+                            mri_slice.copy(),
+                            gt_slice.copy(),
+                            pred_slice.copy()
+                        )
                     )
     
                 total_dice += dice
                 count += 1
     
                     
-        if best_case is not None:
-            gen_ploting(
-                "best",
-                best_case[0],
-                best_case[1],
-                best_case[2]
-            )
+        if best_cases:
+            count = 0
+            for best_case in best_cases:
+                if count >= 5:
+                    break
+                gen_ploting(
+                    f"best_{count}",
+                    best_case[0],
+                    best_case[1],
+                    best_case[2]
+                )
+                count += 1
 
-        if worst_case is not None:
-            gen_ploting(
-                "worst",
-                worst_case[0],
-                worst_case[1],
-                worst_case[2]
-            )
+
+        if worst_cases:
+            count = 0
+            for worst_case in worst_cases:
+                if count >= 5:
+                    break
+                gen_ploting(
+                    f"worst_{count}",
+                    worst_case[0],
+                    worst_case[1],
+                    worst_case[2]
+                )
+                count += 1
         
         avg_time = sum(inference_time) / len(inference_time)
         with open("training_log3d.txt", "a") as log_file:
@@ -946,11 +959,10 @@ def gen_ploting(name, mri_slice, gt_slice, pred_slice):
 
     legend_items = [
         Patch(color=plt.cm.tab10(0), label="Background"),
-        Patch(color=plt.cm.tab10(1), label=""),
         Patch(color=plt.cm.tab10(2), label="Body"),
-        Patch(color=plt.cm.tab10(3), label="Bladder"),
-        Patch(color=plt.cm.tab10(4), label="Rectum"),
-        Patch(color=plt.cm.tab10(5), label="Prostate")
+        Patch(color=plt.cm.tab10(5), label="Bone"),
+        Patch(color="grey", label="Bladder"),
+        Patch(color="cyan", label="Prostate")
     ]
 
     plt.legend(
