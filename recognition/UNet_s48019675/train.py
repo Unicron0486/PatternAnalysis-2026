@@ -201,11 +201,11 @@ def training_2d():
     train_dataset = dataset.get_training_2d()
     val_dataset = dataset.get_validation_2d()
     print("data loaded")
-    transforms = torch.nn.Sequential(
-        dataset.RandomFlip(),
-        dataset.RandomRotation(10),
-        dataset.RandomIntensityShift(0.1),
-    )
+    # transforms = torch.nn.Sequential(
+    #     dataset.RandomFlip(),
+    #     dataset.RandomRotation(10),
+    #     dataset.RandomIntensityShift(0.1),
+    # )
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)#, transform=transforms)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
