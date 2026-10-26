@@ -337,7 +337,7 @@ def test_2d(thresholds):
 
             count += 1
 
-    if best_case is not None:
+    if best_cases is not None:
         count = 0
         for best_case in best_cases:
             if count >= 5:
@@ -818,7 +818,7 @@ class model_3d():
                 count += 1
     
                     
-        if best_cases:
+        if best_cases is not None:
             count = 0
             for best_case in best_cases:
                 if count >= 5:
@@ -832,7 +832,8 @@ class model_3d():
                 count += 1
 
 
-        if worst_cases:
+
+        if worst_cases is not None:
             count = 0
             for worst_case in worst_cases:
                 if count >= 5:
