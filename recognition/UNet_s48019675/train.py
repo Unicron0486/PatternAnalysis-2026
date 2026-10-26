@@ -350,7 +350,6 @@ def test_2d(thresholds):
                 f"best_{count}"
             )
             count += 1
-
         
     if worst_cases is not None:
         count = 0
@@ -362,8 +361,9 @@ def test_2d(thresholds):
                 worst_image,
                 worst_prediction,
                 worst_ground_truth,
-                "worst"
+                f"worst_{count}"
             )
+            count += 1
 
     # Log results
     with open("training_log.txt", "a") as log_file:
