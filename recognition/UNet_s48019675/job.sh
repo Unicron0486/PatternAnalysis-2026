@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=H3DUnetH
+#SBATCH --job-name=HUnetsH
 #SBATCH --partition=comp3710
 #SBATCH --account=comp3710
 #SBATCH --gres=gpu

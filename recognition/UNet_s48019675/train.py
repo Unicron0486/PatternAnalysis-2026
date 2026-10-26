@@ -1,5 +1,6 @@
 import time
 from matplotlib import pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import modules
@@ -289,6 +290,8 @@ def test_2d(thresholds):
     worst_dice = 2
     best_cases = []
     worst_cases = []
+    dice_count = 0
+    all_dice = []
     inference_times = []
     with torch.no_grad():
 
@@ -303,6 +306,9 @@ def test_2d(thresholds):
             inference_times.append(inference_time)
             
             class_dice = dice_per_class(output, ground_truth, num_classes=6)
+            mean_dice = dice_2d(output, ground_truth)
+            all_dice.append(mean_dice)
+            dice_count += 1
             class_iou = iou_per_class(output, ground_truth, num_classes=6)
             prediction = torch.argmax(output, dim=1)
 
@@ -333,13 +339,13 @@ def test_2d(thresholds):
             
               
 
-            total_dice += dice
+            
 
-            count += 1
+            
 
     if best_cases is not None:
         count = 0
-        for best_case in best_cases:
+        for best_case in best_cases[::-1]:  # Reverse to get the best cases first
             if count >= 5:
                 break
             best_image, best_prediction, best_ground_truth = best_case
@@ -353,7 +359,7 @@ def test_2d(thresholds):
         
     if worst_cases is not None:
         count = 0
-        for worst_case in worst_cases:
+        for worst_case in worst_cases[::-1]:  # Reverse to get the worst cases first
             if count >= 5:
                 break
             worst_image, worst_prediction, worst_ground_truth = worst_case
@@ -404,10 +410,13 @@ def test_2d(thresholds):
             f"Overall IoU: "
             f"{overall_iou / valid_class_count:.4f}\n"
         )
-    average_dice = total_dice / valid_class_count if valid_class_count > 0 else 0.0
+    log_file.write(
+        f"np dice score: {np.mean(all_dice):.4f}, sd: {np.std(all_dice):.4f}\n"
+    )
+    mean_dice = mean_dice / dice_count if dice_count > 0 else 0.0
     with open("training_log.txt", "a") as log_file:
         log_file.write(
-            f"Average Dice Score: {average_dice:.4f}\n"
+            f"Average Dice Score: {mean_dice:.4f}\n"
         )
 
     average_inference_time = sum(inference_times) / len(inference_times)
@@ -516,7 +525,7 @@ def gen_plotting_2d(image, combined, combined_truth, count):
 
 
 BATCH_SIZE = 1
-NUM_EPOCHS = 1
+NUM_EPOCHS = 40
 
 
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
@@ -753,7 +762,7 @@ class model_3d():
         inference_time = []
         best_dice = -1
         worst_dice = 2
-
+        all_dice = []
         best_cases = []
         worst_cases = []
 
@@ -790,6 +799,8 @@ class model_3d():
                     output,
                     ground_truth
                 )
+                all_dice.append(dice)
+                dice_count += 1
 
                 mid = image.shape[2] // 2
                     
@@ -807,6 +818,7 @@ class model_3d():
                             pred_slice.copy()
                         )
                     )
+                    best_dice = dice
 
                 if dice < worst_dice:
                     worst_cases.append(
@@ -816,6 +828,7 @@ class model_3d():
                             pred_slice.copy()
                         )
                     )
+                    worst_dice = dice
     
                 total_dice += dice
                 count += 1
@@ -823,7 +836,7 @@ class model_3d():
                     
         if best_cases is not None:
             count = 0
-            for best_case in best_cases:
+            for best_case in best_cases[::-1]:  # Reverse to get the best cases first
                 if count >= 5:
                     break
                 gen_ploting(
@@ -838,7 +851,7 @@ class model_3d():
 
         if worst_cases is not None:
             count = 0
-            for worst_case in worst_cases:
+            for worst_case in worst_cases[::-1]:  # Reverse to get the worst cases first
                 if count >= 5:
                     break
                 gen_ploting(
@@ -868,14 +881,17 @@ class model_3d():
                     )
 
             log_file.write(
-                f"\nOverall Dice Score: {overall / valid if valid > 0 else 0.0:.4f}\n"
+                f"\nOverall Dice Score: {total_dice / dice_count if dice_count > 0 else 0.0:.4f}\n"
+                f"np dice score: {np.mean(all_dice):.4f}, sd: {np.std(all_dice):.4f}\n"
             )
 
 
             log_file.write("\nPer-Class IoU Scores\n")
             overall = 0
             valid = 0
+            dice_count = 0
             for c in range(6):
+                dice_count += 1
                 if class_count[c] > 0:
                     avg = (
                         running_class_iou[c]
@@ -887,10 +903,10 @@ class model_3d():
                         f"class {c}: "
                         f"{avg:.4f}\n"
                     )
-            overall = overall / valid if valid > 0 else 0.0
-            log_file.write(
-                f"Overall: {overall:.4f}\n"
-            )
+            # # overall = overall / dice_count if dice_count > 0 else 0.0
+            # log_file.write(
+            #     f"Overall: {overall:.4f}\n"
+            # )
 
             log_file.write(
                 f"\nAverage Inference Time: "
