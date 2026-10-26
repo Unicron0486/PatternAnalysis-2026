@@ -404,7 +404,7 @@ def test_2d(thresholds):
             f"Overall IoU: "
             f"{overall_iou / valid_class_count:.4f}\n"
         )
-    average_dice = total_dice / count
+    average_dice = total_dice / valid_class_count if valid_class_count > 0 else 0.0
     with open("training_log.txt", "a") as log_file:
         log_file.write(
             f"Average Dice Score: {average_dice:.4f}\n"
@@ -522,8 +522,8 @@ NUM_EPOCHS = 1
 root3d_data = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
 root3d_truth = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
 
-root3d_data = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_MRs"
-root3d_truth = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_labels_only"
+# root3d_data = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_MRs"
+# root3d_truth = "C:/Users/hawki/Uni/2026/MRI/3D/semantic_labels_only"
 # 3D model
 def train_epoch_3d(loader, model, optimiser, criterion):
     """
@@ -643,6 +643,7 @@ class model_3d():
         self.train = tr
         self.val = va
         self.test = te
+        print(len(self.train), len(self.val), len(self.test))
 
 
     def get_data_train(self):
@@ -672,7 +673,7 @@ class model_3d():
         training_losses = []
         validation_losses = []
         dice_scores = []
-        with open("training_log3d.txt", "w") as log_file:
+        with open("training_log3d.txt", "a") as log_file:
             for epoch in range(NUM_EPOCHS):
                 start_time = time.time()
                 train_loss = train_epoch_3d(train_loader, model, optimizer, criterion)
@@ -705,6 +706,8 @@ class model_3d():
                         f"Saved model (Dice={val_dice:.4f})\n"
                     )
                 print("epoch done")
+            log_file.flush()  # optional: writes immediately to disk
+        log_file.close()
         # print(model.sizes)
         make_plots_3d(training_losses, validation_losses, dice_scores)
 
