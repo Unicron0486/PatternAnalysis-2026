@@ -410,9 +410,10 @@ def test_2d(thresholds):
             f"Overall IoU: "
             f"{overall_iou / valid_class_count:.4f}\n"
         )
-    log_file.write(
-        f"np dice score: {np.mean(all_dice):.4f}, sd: {np.std(all_dice):.4f}\n"
-    )
+            
+        log_file.write(
+            f"np dice score: {np.mean(all_dice):.4f}, sd: {np.std(all_dice):.4f}\n"
+        )
     mean_dice = mean_dice / dice_count if dice_count > 0 else 0.0
     with open("training_log.txt", "a") as log_file:
         log_file.write(
@@ -802,20 +803,39 @@ class model_3d():
                 all_dice.append(dice)
                 dice_count += 1
 
-                mid = image.shape[2] // 2
-                    
-                mri_slice = image[0, 0, mid].cpu().numpy()
+                slice_dices = []
+                for z in range(output.shape[1]):
 
-                gt_slice = ground_truth[0, mid].cpu().numpy()
-                pred = torch.argmax(output, dim=1)
-                pred_slice = pred[0, mid].cpu().numpy()
+                    pred_slice = output[0, z]
+                    gt_slice = ground_truth[0, z]
+
+                    intersection = (pred_slice & gt_slice).sum()
+
+                    dice = (
+                        2 * intersection.float() /
+                        (pred_slice.sum() + gt_slice.sum() + 1e-8)
+                    )
+
+                    slice_dices.append(dice.item())
+
+                worst_slice_idx = np.argmin(slice_dices)
+                best_slice_idx = np.argmax(slice_dices)
+
+                mri_worst_slice = image[0,0,worst_slice_idx].cpu().numpy()
+                gt_worst_slice = ground_truth[0,worst_slice_idx].cpu().numpy()
+                pred_worst_slice = output[0,worst_slice_idx].cpu().numpy()
+
+                mri_best_slice = image[0,0,best_slice_idx].cpu().numpy()
+                gt_best_slice = ground_truth[0,best_slice_idx].cpu().numpy()
+                pred_best_slice = output[0,best_slice_idx].cpu().numpy()
+
 
                 if dice > best_dice:
                     best_cases.append(
                         (
-                            mri_slice.copy(),
-                            gt_slice.copy(),
-                            pred_slice.copy()
+                            mri_best_slice.copy(),
+                            gt_best_slice.copy(),
+                            pred_best_slice.copy()
                         )
                     )
                     best_dice = dice
@@ -823,16 +843,16 @@ class model_3d():
                 if dice < worst_dice:
                     worst_cases.append(
                         (
-                            mri_slice.copy(),
-                            gt_slice.copy(),
-                            pred_slice.copy()
+                            mri_worst_slice.copy(),
+                            gt_worst_slice.copy(),
+                            pred_worst_slice.copy()
                         )
                     )
                     worst_dice = dice
     
                 total_dice += dice
                 count += 1
-    
+        
                     
         if best_cases is not None:
             count = 0
@@ -907,7 +927,9 @@ class model_3d():
             # log_file.write(
             #     f"Overall: {overall:.4f}\n"
             # )
-
+            log_file.write(
+                f"np dice score: {np.mean(all_dice):.4f}, sd: {np.std(all_dice):.4f}\n"
+            )
             log_file.write(
                 f"\nAverage Inference Time: "
                 f"{avg_time:.4f}s\n"

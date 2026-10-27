@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=HUnetsH
+#SBATCH --job-name=H3UnetsH
 #SBATCH --partition=comp3710
 #SBATCH --account=comp3710
 #SBATCH --gres=gpu
-#SBATCH --time=08:30:00
+#SBATCH --time=05:30:00
 #SBATCH --output=cuda_check_%j.out
 #SBATCH --error=cuda_check_%j.err
 
