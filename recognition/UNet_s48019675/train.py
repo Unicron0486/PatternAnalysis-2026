@@ -851,45 +851,47 @@ class model_3d():
                 # Best volume
                 #################################################################
 
-                if volume_dice > best_dice:
+                if volume_dice >= best_dice:
 
                     best_dice = volume_dice
 
-                    best_cases.append((
-                        image[0, 0, best_slice_idx]
-                            .cpu().numpy()
-                            .copy(),
+                best_cases.append((
+                    image[0, 0, best_slice_idx]
+                        .cpu().numpy()
+                        .copy(),
 
-                        ground_truth[0, best_slice_idx]
-                            .cpu().numpy()
-                            .copy(),
+                    ground_truth[0, best_slice_idx]
+                        .cpu().numpy()
+                        .copy(),
 
-                        prediction[0, best_slice_idx]
-                            .cpu().numpy()
-                            .copy()
-                    ))
+                    prediction[0, best_slice_idx]
+                        .cpu().numpy()
+                        .copy()
+                ))
+                best_cases = sorted(best_cases, key=lambda x: dice_3d(torch.tensor(x[2]), torch.tensor(x[1])), reverse=True)
 
                 #################################################################
                 # Worst volume
                 #################################################################
 
-                if volume_dice < worst_dice:
+                if volume_dice <= worst_dice:
 
                     worst_dice = volume_dice
 
-                    worst_cases.append((
-                        image[0, 0, worst_slice_idx]
-                            .cpu().numpy()
-                            .copy(),
+                worst_cases.append((
+                    image[0, 0, worst_slice_idx]
+                        .cpu().numpy()
+                        .copy(),
 
-                        ground_truth[0, worst_slice_idx]
-                            .cpu().numpy()
-                            .copy(),
+                    ground_truth[0, worst_slice_idx]
+                        .cpu().numpy()
+                        .copy(),
 
-                        prediction[0, worst_slice_idx]
-                            .cpu().numpy()
-                            .copy()
-                    ))
+                    prediction[0, worst_slice_idx]
+                        .cpu().numpy()
+                        .copy()
+                ))
+                worst_cases = sorted(worst_cases, key=lambda x: dice_3d(torch.tensor(x[2]), torch.tensor(x[1])))
 
         #########################################################################
         # Plot best case
@@ -897,10 +899,11 @@ class model_3d():
         
         
         if len(best_cases) > 0:
+            # print(len(best_cases))
             best_cases = sorted(best_cases, key=lambda x: dice_3d(torch.tensor(x[2]), torch.tensor(x[1])), reverse=True)
             count = 0
             while count < 5:
-
+                
                 case = best_cases[count]
 
                 gen_ploting(
