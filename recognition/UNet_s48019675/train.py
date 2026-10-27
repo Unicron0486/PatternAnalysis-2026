@@ -809,6 +809,9 @@ class model_3d():
                 depth = prediction.shape[1]
 
                 for z in range(depth):
+                    # remove first and last few slices
+                    if z < 50 or z > depth - 50:
+                        continue    
 
                     pred_slice = prediction[0, z]
                     gt_slice = ground_truth[0, z]
