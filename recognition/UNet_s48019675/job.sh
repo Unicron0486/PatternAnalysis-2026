@@ -3,7 +3,7 @@
 #SBATCH --partition=comp3710
 #SBATCH --account=comp3710
 #SBATCH --gres=gpu
-#SBATCH --time=05:30:00
+#SBATCH --time=00:30:00
 #SBATCH --output=cuda_check_%j.out
 #SBATCH --error=cuda_check_%j.err
 

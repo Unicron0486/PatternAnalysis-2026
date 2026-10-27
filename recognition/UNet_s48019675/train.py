@@ -805,13 +805,10 @@ class model_3d():
                 #################################################################
 
                 slice_dices = []
-
+                slice_scores = []
                 depth = prediction.shape[1]
 
                 for z in range(depth):
-                    # remove first and last few slices
-                    if z < 50 or z > depth - 50:
-                        continue    
 
                     pred_slice = prediction[0, z]
                     gt_slice = ground_truth[0, z]
@@ -836,19 +833,22 @@ class model_3d():
                             + 1e-8
                         )
 
-                        class_scores.append(dice)
-
+                        class_dice.append(dice)
+                        
+                    mean_dice = 0
                     if len(class_scores) == 0:
-                        slice_dices.append(0.0)
+                        mean_dice = 0
                     else:
-                        slice_dices.append(
-                            torch.mean(
+                        mean_dice = torch.mean(
                                 torch.stack(class_scores)
                             ).item()
-                        )
 
-                best_slice_idx = np.argmax(slice_dices)
-                worst_slice_idx = np.argmin(slice_dices)
+                    foreground = (gt_slice > 0).sum().item()
+                    score = mean_dice * np.sqrt(foreground)
+                    slice_scores.append(score)
+
+                best_slice_idx = np.argmax(slice_scores)
+                worst_slice_idx = np.argmin(slice_scores)
 
                 #################################################################
                 # Best volume
