@@ -833,7 +833,7 @@ class model_3d():
                             + 1e-8
                         )
 
-                        class_dice.append(dice)
+                        class_scores.append(dice)
                         
                     mean_dice = 0
                     if len(class_scores) == 0:
@@ -844,7 +844,8 @@ class model_3d():
                             ).item()
 
                     foreground = (gt_slice > 0).sum().item()
-                    score = mean_dice * np.sqrt(foreground)
+                    detected = (pred_slice == 4).sum().item()
+                    score = mean_dice * np.sqrt(foreground) * detected
                     slice_scores.append(score)
 
                 best_slice_idx = np.argmax(slice_scores)
