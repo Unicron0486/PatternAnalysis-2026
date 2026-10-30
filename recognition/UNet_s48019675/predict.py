@@ -33,7 +33,7 @@ def run_3d():
     print("3d training")
     torch.cuda.reset_peak_memory_stats()
     m = tr.model_3d()
-    #m.train_model()
+    m.train_model()
     if torch.cuda.is_available():
             max_mem = (
                 torch.cuda.max_memory_allocated()
@@ -49,7 +49,7 @@ def run_3d():
 
      
 if __name__ == "__main__":
-    #run_2d()
+    run_2d()
     run_3d()
 
     
